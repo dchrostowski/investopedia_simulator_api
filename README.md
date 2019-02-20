@@ -16,6 +16,10 @@ Investopedia put a recaptcha puzzle thing on their login page so that **every 3 
 5. Find the cookie called UI4, copy the value only
 6. Pass it to the InvestopediaSimulatorAPI constructor
 7. Don't worry about it for 3 months.
+
+### Security considerations
+**Don't fork this repo and publish your cookie for the whole world to see.  Anyone with that string can access your account.**  For your convenience I added auth_cooke.json to .gitignore.  If you plan on forking this to a publicly accessible repository then you should probably put your cookie in that untracked file and read from it.
+  
 ## Example
 ### code
  ```
