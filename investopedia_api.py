@@ -6,210 +6,13 @@ import re
 from urllib import parse
 import warnings
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
-class InvestopediaAuthException(Exception):
-    pass
-
-class InvalidActiveGameException(Exception):
-    pass
-
-class DuplicateGameException(Exception):
-    pass
-
-class SetActiveGameException(Exception):
-    pass
-
-class InvalidGameException(Exception):
-    pass
-
-class InvalidStockHoldingException(Exception):
-    pass
-
-class InvalidStockHoldingException(Exception):
-    pass
-
-class Constants(object):
-    BASE_URL = 'https://www.investopedia.com/simulator'
-    PATHS = {
-        'portfolio': '/portfolio/',
-        'games': '/game',
-        'home': '/home.aspx',
-    }
-
-class Game(object):
-    def __init__(self,name,url):
-        query_str = parse.urlsplit(url).query
-        query_params = parse.parse_qs(query_str)
-        self.game_id = query_params['gameid'][0]
-        self.name=name
-        self.url=url
-
-    def __repr__(self):
-        return "\n---------------------\nGame: %s\nid: %s\nurl: %s" % (self.name, self.game_id, self.url)
-
-# Needed this because urllib is a bit clunky/confusing
-class UrlHelper(object):
-    @staticmethod
-    def append_path(url,path):
-        parsed = parse.urlparse(url)
-        existing_path = parsed._asdict()['path']
-        new_path = "%s%s" % (existing_path,path)
-        return UrlHelper.set_field(url,'path',new_path)
-
-    @staticmethod
-    def set_path(url,path):
-        return UrlHelper.set_field(url,'path',path)
-
-    @staticmethod
-    def set_query(url,query_dict):
-        query_string = parse.urlencode(query_dict)
-        return UrlHelper.set_field(url,'query',query_string)
-    
-    @staticmethod
-    def set_field(url,field,value):
-        parsed = parse.urlparse(url)
-        # is an ordered dict
-        parsed_dict = parsed._asdict()
-        parsed_dict[field] = value
-        return parse.urlunparse(tuple(v for k,v in parsed_dict.items()))
-
-class GameList(list):
-    def __init__(self,*games,session,active_id=None):
-        self.active_id = active_id
-        self.session=session
-        self.games = {}
-        for game in games:
-            if type(game) != Game:
-                raise InvalidGameException("Object is not a game")
-            if game.game_id in self.games:
-                raise DuplicateGameException("Duplicate game '%s' (id=%s)" % (game.name,game.game_id))
-            
-            self.games.update({game.game_id: game})
-            self.append(game)
-
-        if self.active_id is None:
-            warnings.warn("No active game in game list")
-        elif self.active_id not in self.games:
-            raise InvalidActiveGameException("Invalid active game id '%s' specified" % self.active_id)
-    
-    def __repr__(self):
-        rpr =  ",\n".join([game.__repr__() for game in list(self)])
-        return "[\n%s\n]" % rpr
-
-    def route(self,page_name):
-        return UrlHelper.append_path(Constants.BASE_URL,self.routes[page_name])
-
-    @property
-    def routes(self):
-        return Constants.PATHS
-
-    @property
-    def active(self):
-        if self.active_id is None:
-            return None
-        return self.games[self.active_id]
-
-    @active.setter
-    def active(self,game_or_gid):
-        active_id = None
-        if type(game_or_gid) == Game:
-            active_id = str(game_or_gid.game_id)
-        else:
-            active_id = str(game_or_gid)
-        if active_id not in self.games:
-            raise InvalidActiveGameException("Invalid active game id on set")
-        query_params = {'SDGID':active_id}
-        
-        url = self.route('games')
-        url = UrlHelper.set_query(url,{'SDGID':active_id})
-        resp = self.session.get(url)
-        if resp.status_code == 200:
-            self.active_id = active_id
-        else:
-            raise SetActiveGameException("Server returned back error: %s" % resp.status_code)
-
-class StockHolding(object):
-    @staticmethod
-    def strip_dollars(amt):
-        match = re.search(r'^\$(\d+\.\d+)',amt)
-        if match:
-            return float(match.group(1))
-        else:
-            try:
-                return float(amt)
-            except ValueError:
-                raise InvalidStockHoldingException("Unable to parse %s as a number" % amt)
-
-
-    def __init__(self,stock,quantity,current,start=None, today_change=None,is_active=False):
-        if type(stock) != Stock:
-            raise InvalidStockHoldingException("stock param must be a Stock")
-        self.stock = stock
-        self.quantity = int(quantity)
-        self.current = StockHolding.strip_dollars(current)
-        if start is not None and today_change is not None:
-            is_active = True
-        if is_active:
-            self.start = StockHolding.strip_dollars(start)
-            self.today_change = today_change
-        else:
-            self.start = None
-            self.today_change = None
-
-        self.is_active=is_active
-
-    @property
-    def net_return(self):
-        if not self.is_active:
-            return 0
-        net = self.current - self.start
-        net *= self.quantity
-        return round(net,2)
-
-    @property
-    def total_value(self):
-        return round(self.current * self.quantity,2)
-
-    def __repr__(self):
-        if self.is_active:
-            return "\n[%s shares of %s]\n  start: $%s\n  current: $%s\n  net: $%s\n" % (self.quantity,self.stock.symbol, self.start, self.current, self.net_return)
-        else:
-            return "\n[%s shares of %s] (PENDING)\n  current: %s\n" % (self.quantity, self.stock.symbol, self.current)
-
-class Stock(object):
-    def __init__(self, symbol, name, url):
-        name = re.sub(r'(?:\.|\,)','',name)
-        self.symbol = symbol
-        self.name = name
-        self.url = url
-    
-    def __repr__(self):
-        return "%s" % self.symbol
-
-class StockPortfolio(list):
-    def __init__(self,*holdings):
-        self.net_return = 0
-        self.stocks_shares = {}
-        self.total_value = 0
-        for h in holdings:
-            self.stocks_shares[h.stock.symbol] = h.quantity
-            if h.is_active:
-                self.net_return += h.net_return
-                self.total_value += h.total_value
-            self.append(h)
-
-    def find_by_symbol(self,symbol):
-        if symbol not in self.stocks_shares:
-            return []
-        holdings_to_return = []
-        for holding in list(self):
-            if holding.stock.symbol == symbol:
-                holdings_to_return.append(holding)
-        return holdings_to_return
+from util import UrlHelper, Util
+from constants import *
+from api_models import Game, GameList, StockPortfolio, Stock, StockHolding, StockQuote
 
 class InvestopediaSimulatorAPI(object):
-
     def __init__(self,auth_cookie):
         # auth cookie is UI4
         self.auth_cookie_value = auth_cookie
@@ -232,9 +35,38 @@ class InvestopediaSimulatorAPI(object):
     @property
     def routes(self):
         return Constants.PATHS
-    
-    # lookup: POST https://www.investopedia.com/simulator/stocks/symlookup.aspx
-    # body: asbDescription=FCAP&selectedValue=&btnLookup=Lookup+Symbol 
+
+    def get_quote(self,symbol):
+        url = self.route('lookup')
+        url = UrlHelper.set_query(url,{'s':symbol})
+        resp = self.session.get(url)
+        if resp.status_code == 200:
+            tree = html.fromstring(resp.text)
+            xpath_map = {
+                'name': '//section[@id="Overview"]/div[@class="inner"]//span[@id="quoteName"]/text()',
+                'symbol': '//section[@id="Overview"]/div[@class="inner"]//span[@id="quoteSymbol"]/text()',
+                'exchange': '//section[@id="Overview"]/div[@class="inner"]//span[@id="quoteExchange"]/text()',
+                'last': '//section[@id="Overview"]//table[@class="ticker"]//tr/td[@id="quotePrice"]/text()',
+                'change': '//section[@id="Overview"]//table[@class="ticker"]//tr/td[@class="value-change"]/span[@id="quoteChange"]/text()',
+                #'change_percent': '//table[@id="Table2"]/tbody/tr/th[text()="% Change"]/following-sibling::td/text()',
+                #'high': '//table[@id="Table2"]/tbody/tr/th[text()="Day\'s High"]/following-sibling::td/text()',
+                #'low': '//table[@id="Table2"]/tbody/tr/th[text()="Day\'s Low"]/following-sibling::td/text()',
+                #'volume': '//table[@id="Table2"]/tbody/tr/th[text()="Volume"]/following-sibling::td/text()',
+            }
+            stock_quote_data = {k: str(tree.xpath(v)[0]).strip() for k,v in xpath_map.items()}
+            
+            
+            matches = re.search(r'^\(([^\)]+)\)$', stock_quote_data['exchange'])
+            if matches:
+                stock_quote_data['exchange'] = matches.group(1)
+            
+            change_matches = re.search(r'(-?\d+?\.?\d+)\s*\((-?\d+?\.\d+)\%\)',stock_quote_data['change'])
+            if change_matches:
+                stock_quote_data['change'] = change_matches.group(1)
+                stock_quote_data['change_percent'] = change_matches.group(2)
+
+            quote = StockQuote(**stock_quote_data)
+            return quote
 
     def login(self):
         url = self.route('portfolio')
@@ -294,8 +126,6 @@ class InvestopediaSimulatorAPI(object):
             stock_data = {field: tr.xpath(xpr)[0] for field, xpr in stock_td_map.items()}
             holding_data = {field: tr.xpath(xpr)[0] for field, xpr in holding_td_map.items()}
 
-            stock_data['name'] = re.sub(r'(?:\.|\,)','',stock_data['name'])
-
             stock = Stock(**stock_data)
             holding = StockHolding(stock=stock,**holding_data, is_active=True)
 
@@ -351,13 +181,24 @@ class InvestopediaSimulatorAPI(object):
         resp = self.session.post(self.route('portfolio'))
         tree = html.fromstring(resp.content.decode())
 
+        xpath_prefix = '//div[@id="infobar-container"]/div[@class="infobar-title"]/p'
+
+        xpath_map = {
+            'account_value': '/strong[contains(text(),"Account Value")]/following-sibling::span/text()',
+            'buying_power':  '/strong[contains(text(),"Buying Power")]/following-sibling::span/text()',
+            'cash':          '/strong[contains(text(),"Cash")]/following-sibling::span/text()',
+            'annual_return_pct': '/strong[contains(text(),"Annual Return")]/following-sibling::span/text()', 
+        }
+
+        portfolio_metadata = {k: str(tree.xpath("%s%s" % (xpath_prefix, v))[0]) for k,v in xpath_map.items()}
+
         pending_rows = tree.xpath('//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]')
         active_rows = tree.xpath('//table[@id="stock-portfolio-table"]/tbody/tr[not(contains(@class,"expandable")) and not(contains(@style,"italic"))]')
         
         pending_holdings = self._get_pending_stock_portfolio(pending_rows)
         active_holdings = self._get_active_stock_portfolio(active_rows)
         all_holdings = active_holdings + pending_holdings
-        self._stock_portfolio = StockPortfolio(*all_holdings)
+        self._stock_portfolio = StockPortfolio(**portfolio_metadata, holdings=all_holdings)
 
         
 
@@ -372,7 +213,6 @@ class InvestopediaSimulatorAPI(object):
         return self._games
 
     def _get_games(self):
-        self._games = []
         games = []
         resp = self.session.get(self.route('games'))
         tree = html.fromstring(resp.content.decode())
@@ -381,13 +221,10 @@ class InvestopediaSimulatorAPI(object):
             url = row.xpath('td[1]/a/@href')[0]
             name = row.xpath('td[1]/a/text()')[0]
             game = Game(name,url)
-
             status = row.xpath('td[2]/a')
             if len(status) < 1:
                 active = game.game_id
 
-            games.append(Game(name,url))
+            games.append(game)
         
         self._games = GameList(*games,session=self.session,active_id=active)
-            
-
