@@ -10,12 +10,6 @@ with open('auth_cookie.json') as ifh:
 client = InvestopediaSimulatorAPI(**cookie)
 portfolio = client.stock_portfolio
 
-# cookie should look like {auth_cookie:'abcdabcd1234...'}
-with open('auth_cookie.json') as ifh:
-    cookie = json.load(ifh)
-
-# Instantiate as you see fit, doesn't need to be a keywork arg
-
 
 print("Default (active) game: %s" % client.active_game)
 print("Portfolio total value: %s" % portfolio.total_value)
