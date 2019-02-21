@@ -1,4 +1,5 @@
 import json
+from IPython import embed
 
 from investopedia_api import InvestopediaSimulatorAPI
 
@@ -34,3 +35,5 @@ print(q2)
 p = client.stock_portfolio
 print("portfolio annual %% return: %s" % p.annual_return_pct)
 print("cash: %s" % p.cash)
+print("buying power: %s" % p.buying_power)
+embed()

@@ -178,7 +178,7 @@ class InvestopediaSimulatorAPI(object):
 
     def _get_stock_portfolio(self):
 
-        resp = self.session.post(self.route('portfolio'))
+        resp = self.session.get(self.route('portfolio'))
         tree = html.fromstring(resp.content.decode())
 
         xpath_prefix = '//div[@id="infobar-container"]/div[@class="infobar-title"]/p'
