@@ -15,7 +15,7 @@ portfolio = client.stock_portfolio
 print("Default (active) game: %s" % client.active_game)
 print("Portfolio total value: %s" % portfolio.total_value)
 for holding in portfolio:
-    print("\nStock symbol: %s (%s)" % (holding.stock.symbol, holding.stock.url))
+    print("\nStock symbol: %s (%s)" % (holding.security.symbol, holding.security.url))
     print("Start price: %s" % holding.start)
     print("Current price: %s" % holding.current)
     print("Net return: %s\n" % holding.net_return)

@@ -6,11 +6,13 @@ import re
 from urllib import parse
 import warnings
 import logging
-logging.basicConfig(level=logging.DEBUG)
+import copy
+logging.basicConfig(level=logging.INFO)
 
 from util import UrlHelper, Util
 from constants import *
 from api_models import Game, GameList, StockPortfolio, Stock, StockHolding, StockQuote
+
 
 class InvestopediaSimulatorAPI(object):
     def __init__(self,auth_cookie):
@@ -111,7 +113,7 @@ class InvestopediaSimulatorAPI(object):
 
     def _get_active_stock_portfolio(self,rows):
         stock_td_map = {
-            'name': 'td[4]/text()',
+            'name': 'td[4]/text()|td[3]/a[2]/text()',
             'symbol': 'td[3]/a[2]/text()',
             'url': 'td[3]/a[2]/@href',
         }
@@ -123,8 +125,12 @@ class InvestopediaSimulatorAPI(object):
         }
         holdings = []
         for tr in rows:
-            stock_data = {field: tr.xpath(xpr)[0] for field, xpr in stock_td_map.items()}
-            holding_data = {field: tr.xpath(xpr)[0] for field, xpr in holding_td_map.items()}
+            try:
+                stock_data = {field: tr.xpath(xpr)[0] for field, xpr in stock_td_map.items()}
+                holding_data = {field: tr.xpath(xpr)[0] for field, xpr in holding_td_map.items()}
+            except IndexError as e:
+                embed()
+                
 
             stock = Stock(**stock_data)
             holding = StockHolding(stock=stock,**holding_data, is_active=True)

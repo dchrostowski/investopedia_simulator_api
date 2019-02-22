@@ -20,6 +20,12 @@ class InvalidStockHoldingException(Exception):
 class InvalidStockHoldingException(Exception):
     pass
 
+class InvalidHoldingException(Exception):
+    pass
+
+class InvalidOptionException(Exception):
+    pass
+
 class Constants(object):
     BASE_URL = 'https://www.investopedia.com/simulator'
     PATHS = {
