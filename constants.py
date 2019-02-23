@@ -34,3 +34,10 @@ class Constants(object):
         'home': '/home.aspx',
         'lookup': '/stocks/symlookup.aspx',
     }
+    STOCK_TRADE_TRANSACTION_TYPES = {
+        'BUY': 1,
+        'SELL': 2,
+        'SELL_SHORT': 3,
+        'BUY_TO_COVER': 4,
+    }
+
