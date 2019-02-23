@@ -224,3 +224,54 @@ class StockPortfolio(Portfolio):
 class OptionPortfolio(Portfolio):
     def __init__(self,account_value, buying_power, cash, annual_return_pct, holdings):
         super().__init__(account_value,buying_power,cash,annual_return_pct)
+
+# formToken	d8e94a6868e856a5a9be11fb6edb24b5
+# symbolTextbox	GOOG
+# symbolTextbox_mi_1_value	GOOG
+# symbolTextbox_mi_2_value	GOOGL
+# selectedValue	GOOG
+# transactionTypeDropDown	1
+# quantityTextbox	1
+# isShowMax	0
+# Price	Market
+# limitPriceTextBox	
+# stopPriceTextBox	
+# tStopPRCTextBox	
+# tStopVALTextBox	
+# durationTypeDropDown	2
+# sendConfirmationEmailCheckBox	on
+
+'''
+ken	e200ad973d8759de716e7ea81e0371f0
+symbolTextbox	A
+selectedValue	
+transactionTypeDropDown	1
+quantityTextbox	1
+isShowMax	0
+Price	Market
+limitPriceTextBox	
+stopPriceTextBox	
+tStopPRCTextBox	
+tStopVALTextBox	
+durationTypeDropDown	2
+sendConfirm
+'''
+class StockTrade(object):
+    def __init__(self, session):
+        self.sesson = session
+    
+    def buy(self,stock,quantity):
+        pass
+
+    def sell(self,holding):
+        pass
+
+    def sell_short(self,stock):
+        pass
+    
+    def buy_to_cover(self,stock)
+
+
+# price is going to be {market: None} or {stop: n} or {limit: n}
+class StockBuy(StockTrade):
+    def __init__(self,stock,quantity,price={'market':None})
