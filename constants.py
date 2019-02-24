@@ -48,6 +48,7 @@ class Constants(object):
         'home': '/home.aspx',
         'lookup': '/stocks/symlookup.aspx',
         'tradestock': '/trade/tradestock.aspx',
+        'tradestock_submit': '/trade/tradestockpreview.aspx',
         'tradeoption': '/trade/TradeOptions.aspx',
     }
 

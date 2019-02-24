@@ -41,26 +41,69 @@ class InvestopediaSimulatorAPI(object):
 
     def prepare_trade(self,trade):
         url = None
-        token = None
+        form_token = None
+        url_token = None
         if type(trade) == StockTrade:
-            token = self._get_stock_trade_token()
+            form_token = self._get_stock_trade_form_token()
             url = self.route('tradestock')
         elif type(trade) == OptionTrade:
             url = self.route('tradeoption')
-            token = self._get_option_trade_token()
+            token = self._get_option_trade_form_token()
 
-        trade.token = token
+        trade.form_token = form_token
         resp = self.session.post(url,data=trade.show_max())
+       
+
+
         # show max here
         print("show max")
-        embed()
+
+
         resp = self.session.post(url,data=trade.prepare())
+        if resp.history:
+            redirect_url = resp.history[0].headers['Location']
+            redirect_qp = UrlHelper.get_query_params(redirect_url)
+            url_token = redirect_qp['urlToken']
+
         tree = html.fromstring(resp.text)
-        submit_onclick = tree.xpath('//div[@class="group"]/input[@id="changeOrder"]/@onclick')[0]
-        embed()
 
+        trade_info_tables = tree.xpath('//div[@class="box-table"]/table[contains(@class,"table1")]')
+        tt1 = trade_info_tables[0]
+        tt2 = trade_info_tables[1]
 
-        embed()
+        trade_info = {
+            'Description': tt1.xpath('tbody/tr[2]/td[1]/text()')[0],
+            'Transaction': tt1.xpath('tbody/tr[2]/td[2]/text()')[0],
+            'StopLimit': tt1.xpath('tbody/tr[2]/td[3]/text()')[0],
+            'Duration': tt1.xpath('tbody/tr[2]/td[4]/text()')[0],
+            'Price': tt2.xpath('tbody/tr[1]/td[3]/text()')[0],
+            'Quantity': tt2.xpath('tbody/tr[2]/td[2]/text()')[0],
+            'Commision': tt2.xpath('tbody/tr[3]/td[2]/text()')[0],
+            'Est_Total': tt2.xpath('tbody/tr[4]/td[2]/text()')[0],
+
+        }
+
+        change_onclick = tree.xpath('//input[@id="changeOrder"]/@onclick')[0]
+        matches = re.search(r'href=\'([^\']+)\'$',change_onclick)
+        
+        change_url = None
+        if matches:
+            change_url = matches.group(1)
+        submit_query_params = UrlHelper.get_query_params(change_url)
+        submit_query_params.update({'urlToken':url_token})
+
+        submit_form = tree.xpath('//div[@class="group"]/form[@name="simTradePreview"]')[0]
+        submit_token = submit_form.xpath('input[@name="formToken"]/@value')[0]
+        submit_order_val = submit_form.xpath('input[@name="submitOrder"]/@value')[0]
+
+        submit_data = {
+            'submitOrder': submit_order_val,
+            'formToken': submit_token
+        }
+
+        submit_url = UrlHelper.set_query(self.route('tradestock_submit'),submit_query_params)
+        prepared_trade = PreparedTrade(self.session,submit_url, submit_data, **trade_info)
+        return prepared_trade
 
     def get_quote(self,symbol):
         url = self.route('lookup')
@@ -79,7 +122,11 @@ class InvestopediaSimulatorAPI(object):
                 #'low': '//table[@id="Table2"]/tbody/tr/th[text()="Day\'s Low"]/following-sibling::td/text()',
                 #'volume': '//table[@id="Table2"]/tbody/tr/th[text()="Volume"]/following-sibling::td/text()',
             }
-            stock_quote_data = {k: str(tree.xpath(v)[0]).strip() for k,v in xpath_map.items()}
+            try:
+                stock_quote_data = {k: str(tree.xpath(v)[0]).strip() for k,v in xpath_map.items()}
+            except IndexError:
+                print("Could not get quote for %s" % symbol)
+                return
             
             
             matches = re.search(r'^\(([^\)]+)\)$', stock_quote_data['exchange'])
@@ -147,13 +194,14 @@ class InvestopediaSimulatorAPI(object):
             'current': 'td[7]/text()',
             'today_change': 'td[9]/text()'
         }
+
         holdings = []
         for tr in rows:
             try:
                 stock_data = {field: tr.xpath(xpr)[0] for field, xpr in stock_td_map.items()}
                 holding_data = {field: tr.xpath(xpr)[0] for field, xpr in holding_td_map.items()}
             except IndexError as e:
-                embed()
+                raise(e)
                 
 
             stock = Stock(**stock_data)
@@ -187,6 +235,9 @@ class InvestopediaSimulatorAPI(object):
 
         pending_holdings = []
         for tr in rows:
+            is_cancelled = tr.xpath('td[1]/span/span/span[text()="Cancelled"]')
+            if len(is_cancelled) > 0:
+                continue
             stock_data = {k:tr.xpath(v)[0] for k,v in td_map_stock.items()}
 
             #stock,quantity,start,current,today_change
@@ -198,8 +249,8 @@ class InvestopediaSimulatorAPI(object):
                 'stock': Stock(**stock_data),
                 'today_change': None
             }
+
             holding_data.update(missing)
-            
             pending_holdings.append(StockHolding(**holding_data))
 
         
@@ -259,13 +310,13 @@ class InvestopediaSimulatorAPI(object):
         
         self._games = GameList(*games,session=self.session,active_id=active)
 
-    def _get_stock_trade_token(self):
+    def _get_stock_trade_form_token(self):
         resp = self.session.get(self.route('tradestock'))
         tree = html.fromstring(resp.text)
         token = tree.xpath('//div[@class="group"]//form[@id="orderForm"]/input[@name="formToken"]/@value')[0]
         return token
 
-    def _get_option_trade_token(self):
+    def _get_option_trade_form_token(self):
         resp = self.session.get(self.route('tradeoption'))
         tree = html.fromstring(resp.text)
         token = tree.xpath('//div[@class="group"]//form[@id="orderForm"]/input[@name="formToken"]/@value')[0]

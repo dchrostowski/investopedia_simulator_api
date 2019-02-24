@@ -1,3 +1,5 @@
+from IPython import embed
+
 from urllib import parse
 import re
 
@@ -33,3 +35,9 @@ class UrlHelper(object):
         parsed_dict = parsed._asdict()
         parsed_dict[field] = value
         return parse.urlunparse(tuple(v for k,v in parsed_dict.items()))
+
+    @staticmethod
+    def get_query_params(url):
+        query_str = parse.urlsplit(url).query
+        query_params = parse.parse_qsl(query_str)
+        return dict(query_params)

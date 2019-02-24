@@ -10,9 +10,8 @@ from constants import *
 
 class Game(object):
     def __init__(self,name,url):
-        query_str = parse.urlsplit(url).query
-        query_params = parse.parse_qs(query_str)
-        self.game_id = query_params['gameid'][0]
+        query_params = UrlHelper.get_query_params(url)
+        self.game_id = query_params['gameid']
         self.name=name
         self.url=url
 
@@ -209,18 +208,20 @@ class StockPortfolio(Portfolio):
             self.append(h)
             self.security_set.add(h.security.symbol)
 
-    def find_by_symbol(self,symbol):
+    def find_by_symbol(self,symbol,return_pending=True):
         symbol = symbol.upper()
         if symbol not in self.security_set:
-            return None
+            return []
         holdings_to_return = []
         for holding in list(self):
             if holding.security.symbol == symbol:
-                holdings_to_return.append(holding)
+                if holding.is_active:
+                    holdings_to_return.append(holding)
+                elif return_pending and not holding.is_active:
+                    holdings_to_return.append(holding)
+                elif not return_pending and not holding.is_active:
+                    continue
 
-        if len(holdings_to_return) < 2:
-            return holdings_to_return[0]
-        
         return holdings_to_return
         
 
@@ -372,7 +373,14 @@ class OptionTrade(object):
     pass
 
 class StockTrade(object):
-    def __init__(self,stock,transaction_type, order_type, order_duration, quantity, sendEmail=True):
+    def __init__(
+        self,
+        stock,
+        quantity,
+        transaction_type,
+        order_type=OrderType.MARKET(),
+        order_duration=OrderDuration.GOOD_TILL_CANCELLED(),
+        sendEmail=True):
 
         try:
             assert type(transaction_type) == TransactionType
@@ -382,7 +390,8 @@ class StockTrade(object):
             err = "Invalid trade.  Ensure all paramaters are properly typed."
             raise InvalidTradeException(err)
         
-        self._token = None
+        self._form_token = None
+        self._url_token = None
         self.symbol = stock.symbol
         self.quantity = quantity
 
@@ -405,24 +414,35 @@ class StockTrade(object):
         self.form_data.update(order_duration.form_data)
 
     @property
-    def token(self):
+    def form_token(self):
         return self._token
 
-    @token.setter
-    def token(self,token):
+    @form_token.setter
+    def form_token(self,token):
         self.form_data.update({'formToken': token})
-        self._token = token
+        self._form_token = token
 
     def show_max(self):
         return {
             'isShowMax': 1,
-            'symbolTextBox': self.form_data,
+            'symbolTextbox': self.form_data,
             'action': 'showMax'
         }
 
     def prepare(self):
-        if self._token is None:
+        if self._form_token is None:
             raise TradeTokenNotSetException("Must set the csrf token for the trade first")
         return self.form_data
+
+class PreparedTrade(dict):
+    def __init__(self,session,url,form_data, **kwargs):
+        self.session = session
+        self.url = url
+        self.form_data = form_data
+        self.update(kwargs)
+
+    def execute(self):
+        resp = self.session.post(self.url,data=self.form_data)
+        return resp
 
         
