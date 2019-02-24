@@ -217,8 +217,8 @@ class InvestopediaSimulatorAPI(object):
 
         td_map_stock = {
             'url': 'td[2]/span/a/@href',
-            'symbol': 'td[2]/span/a/text()',
-            'name': 'td[2]/span/text()',
+            'symbol': 'td[2]/span/a/text()|td[2]/span/text()',
+            'name': 'td[2]/span/text()|td[2]/span/a/text()',
         }
 
         td_map_holding = {
@@ -239,7 +239,10 @@ class InvestopediaSimulatorAPI(object):
             is_cancelled = tr.xpath('td[1]/span/span/span[text()="Cancelled"]')
             if len(is_cancelled) > 0:
                 continue
+
             stock_data = {k:tr.xpath(v)[0] for k,v in td_map_stock.items()}
+
+
 
             #stock,quantity,start,current,today_change
             holding_data = {k:tr.xpath(v)[0] for k,v, in td_map_holding.items()}
