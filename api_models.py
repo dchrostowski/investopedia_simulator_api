@@ -2,8 +2,11 @@ import re
 from urllib import parse
 import datetime
 from IPython import embed
+import json
 
 from util import Util, UrlHelper
+from titlecase import titlecase
+from constants import *
 
 class Game(object):
     def __init__(self,name,url):
@@ -225,53 +228,201 @@ class OptionPortfolio(Portfolio):
     def __init__(self,account_value, buying_power, cash, annual_return_pct, holdings):
         super().__init__(account_value,buying_power,cash,annual_return_pct)
 
-# formToken	d8e94a6868e856a5a9be11fb6edb24b5
-# symbolTextbox	GOOG
-# symbolTextbox_mi_1_value	GOOG
-# symbolTextbox_mi_2_value	GOOGL
-# selectedValue	GOOG
-# transactionTypeDropDown	1
-# quantityTextbox	1
-# isShowMax	0
-# Price	Market
-# limitPriceTextBox	
-# stopPriceTextBox	
-# tStopPRCTextBox	
-# tStopVALTextBox	
-# durationTypeDropDown	2
-# sendConfirmationEmailCheckBox	on
-
 '''
-ken	e200ad973d8759de716e7ea81e0371f0
-symbolTextbox	A
-selectedValue	
-transactionTypeDropDown	1
-quantityTextbox	1
+formToken	732b889d629872bb7b7c843574b53d74
+symbolTextbox	GOOGL
+symbolTextbox_mi_1_value	GOOGL
+selectedValue	GOOGL
+transactionTypeDropDown	1 # buy, sell, sell_short, buy_to_cover
+quantityTextbox	25
 isShowMax	0
-Price	Market
-limitPriceTextBox	
+Price	Limit
+limitPriceTextBox	1116
 stopPriceTextBox	
 tStopPRCTextBox	
 tStopVALTextBox	
 durationTypeDropDown	2
-sendConfirm
+sendConfirmationEmailCheckBox	on
 '''
+
+class TransactionType(object):
+    def __init__(self,ttype):
+        ttype = ttype.upper()
+        type_val = None
+
+        if ttype in Constants.STOCK_TRADE_TRANSACTION_TYPES:
+            self.security_type = Stock
+            type_val = Constants.STOCK_TRADE_TRANSACTION_TYPES[ttype]
+
+        elif ttype in Constants.OPTION_TRADE_TRANSACTION_TYPES:
+            self.security_type = Option
+            type_val = Constants.OPTION_TRADE_TRANSACTION_TYPES[ttype]
+        else:
+            err = "Invalid transaction type '%s'.\n" % ttype
+            err += "  Valid stock transaction types are:\n"
+            err += "\t%s\n" % ", ".join(Constants.STOCK_TRADE_TRANSACTION_TYPES.keys())
+            err += "  Valid option transaction types are:\n"
+            err += "\t%s\n" % ", ".join(Constants.OPTION_TRADE_TRANSACTION_TYPES.keys())
+            raise InvalidTradeTransactionException(err)
+
+        self.form_data = {'transactionTypeDropDown': type_val}
+
+    def __repr__(self):
+        return json.dumps(self.form_data)
+
+    
+    @classmethod
+    def STOCK_BUY(cls):
+        return cls('BUY')
+    
+    @classmethod
+    def STOCK_SELL(cls):
+        return cls('SELL')
+    
+    @classmethod
+    def STOCK_SELL_SHORT(cls):
+        return cls('SELL_SHORT')
+    
+    @classmethod
+    def STOCK_BUY_TO_COVER(cls):
+        return cls('BUY_TO_COVER')
+
+    @classmethod
+    def OPTION_BUY_TO_OPEN(cls):
+        return cls('BUY_TO_OPEN')
+    
+    @classmethod
+    def OPTION_SELL_TO_CLOSE(cls):
+        return cls('SELL_TO_CLOSE')
+
+
+class OrderType(object):
+    def __init__(self,order_type,price=None, pct=None):
+        order_type = titlecase(order_type)
+
+        self.form_data = {
+            'Price': order_type,
+            'limitPriceTextBox': None,
+            'stopPriceTextBox': None,
+            'tStopPRCTextBox':None,
+            'tStopVALTextBox':None 
+        }
+
+        if re.search(r'trailingstop', order_type.lower()):
+            order_type = 'TrailingStop'
+
+        try:
+            self.form_data.update(Constants.ORDER_TYPES[order_type](price,pct))
+        except KeyError:
+            err = "Invalid order type '%s'\n" % order_type
+            err += "  Valid order types are:\n\t"
+            err += ", ".join(Constants.ORDER_TYPES.keys()) + "\n"
+            raise InvalidOrderTypeException(err)
+
+    def __repr__(self):
+        return json.dumps(self.form_data)
+
+    @classmethod
+    def MARKET(cls):
+        return cls('Market')
+    
+    @classmethod
+    def LIMIT(cls,price):
+        return cls('Limit',price)
+    
+    @classmethod
+    def STOP(cls,price):
+        return cls('Stop',price)
+
+    @classmethod
+    def TRAILING_STOP(cls,price=None,pct=None):
+        if price and pct:
+            raise InvalidOrderTypeException("Must only pick either percent or dollar amount for trailing stop.")
+        if price is None and pct is None:
+            raise InvalidOrderTypeException("Must enter either a percent or dollar amount for traling stop.")
+        return cls('TrailingStop',price,pct)
+
+class OrderDuration(object):
+    def __init__(self,duration):
+        duration = duration.upper()
+        form_val = None
+        try:
+            form_val = Constants.ORDER_DURATIONS[duration]
+            self.duration = duration
+        except KeyError:
+            err = "Invalid order duration '%s'.\n" % duration
+            err += "  Valid order durations are:\n\t"
+            err += ", ".join(Constants.ORDER_DURATIONS.keys()) + "\n"
+            raise InvalidOrderDurationException(err)
+
+        self.form_data = {'durationTypeDropDown': form_val}
+
+    def __repr__(self):
+        return json.dumps(self.form_data)
+
+    @classmethod
+    def DAY_ORDER(cls):
+        return cls('DAY_ORDER')
+
+    @classmethod
+    def GOOD_TILL_CANCELLED(cls):
+        return cls('GOOD_TILL_CANCELLED')
+
+class OptionTrade(object):
+    pass
+
 class StockTrade(object):
-    def __init__(self, session):
-        self.sesson = session
-    
-    def buy(self,stock,quantity):
-        pass
+    def __init__(self,stock,transaction_type, order_type, order_duration, quantity, sendEmail=True):
 
-    def sell(self,holding):
-        pass
+        try:
+            assert type(transaction_type) == TransactionType
+            assert type(order_type) == OrderType
+            assert type(quantity) == int
+        except AssertionError:
+            err = "Invalid trade.  Ensure all paramaters are properly typed."
+            raise InvalidTradeException(err)
+        
+        self._token = None
+        self.symbol = stock.symbol
+        self.quantity = quantity
 
-    def sell_short(self,stock):
-        pass
-    
-    def buy_to_cover(self,stock)
 
+        if sendEmail:
+            sendEmail=1
+        else:
+            sendEmail=0
 
-# price is going to be {market: None} or {stop: n} or {limit: n}
-class StockBuy(StockTrade):
-    def __init__(self,stock,quantity,price={'market':None})
+        self.form_data = {
+            'symbolTextbox': self.symbol,
+            'selectedValue': None,
+            'quantityTextbox': self.quantity,
+            'isShowMax': 0,
+            'sendConfirmationEmailCheckBox':sendEmail
+        }
+
+        self.form_data.update(transaction_type.form_data)
+        self.form_data.update(order_type.form_data)
+        self.form_data.update(order_duration.form_data)
+
+    @property
+    def token(self):
+        return self._token
+
+    @token.setter
+    def token(self,token):
+        self.form_data.update({'formToken': token})
+        self._token = token
+
+    def show_max(self):
+        return {
+            'isShowMax': 1,
+            'symbolTextBox': self.form_data,
+            'action': 'showMax'
+        }
+
+    def prepare(self):
+        if self._token is None:
+            raise TradeTokenNotSetException("Must set the csrf token for the trade first")
+        return self.form_data
+
+        

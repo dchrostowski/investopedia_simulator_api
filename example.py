@@ -2,6 +2,7 @@ import json
 from IPython import embed
 
 from investopedia_api import InvestopediaSimulatorAPI
+from api_models import *
 
 # cookie should look like {auth_cookie:'abcdabcd1234...'}
 with open('auth_cookie.json') as ifh:
@@ -36,4 +37,19 @@ p = client.stock_portfolio
 print("portfolio annual %% return: %s" % p.annual_return_pct)
 print("cash: %s" % p.cash)
 print("buying power: %s" % p.buying_power)
+
+
+print("START TRADE STUFF")
+print("----------------------")
+quote = client.get_quote('FCAP')
+print(quote)
+
+
+
+td = OrderDuration.GOOD_TILL_CANCELLED()
+ot = OrderType('Market')
+tt = TransactionType.STOCK_BUY()
+
+trade_obj = StockTrade(quote,tt, ot, td,5,True)
+client.prepare_trade(trade_obj)
 embed()

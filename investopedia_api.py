@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 
 from util import UrlHelper, Util
 from constants import *
-from api_models import Game, GameList, StockPortfolio, Stock, StockHolding, StockQuote
+from api_models import *
 
 
 class InvestopediaSimulatorAPI(object):
@@ -37,6 +37,30 @@ class InvestopediaSimulatorAPI(object):
     @property
     def routes(self):
         return Constants.PATHS
+
+
+    def prepare_trade(self,trade):
+        url = None
+        token = None
+        if type(trade) == StockTrade:
+            token = self._get_stock_trade_token()
+            url = self.route('tradestock')
+        elif type(trade) == OptionTrade:
+            url = self.route('tradeoption')
+            token = self._get_option_trade_token()
+
+        trade.token = token
+        resp = self.session.post(url,data=trade.show_max())
+        # show max here
+        print("show max")
+        embed()
+        resp = self.session.post(url,data=trade.prepare())
+        tree = html.fromstring(resp.text)
+        submit_onclick = tree.xpath('//div[@class="group"]/input[@id="changeOrder"]/@onclick')[0]
+        embed()
+
+
+        embed()
 
     def get_quote(self,symbol):
         url = self.route('lookup')
@@ -234,3 +258,20 @@ class InvestopediaSimulatorAPI(object):
             games.append(game)
         
         self._games = GameList(*games,session=self.session,active_id=active)
+
+    def _get_stock_trade_token(self):
+        resp = self.session.get(self.route('tradestock'))
+        tree = html.fromstring(resp.text)
+        token = tree.xpath('//div[@class="group"]//form[@id="orderForm"]/input[@name="formToken"]/@value')[0]
+        return token
+
+    def _get_option_trade_token(self):
+        resp = self.session.get(self.route('tradeoption'))
+        tree = html.fromstring(resp.text)
+        token = tree.xpath('//div[@class="group"]//form[@id="orderForm"]/input[@name="formToken"]/@value')[0]
+        return
+
+    def trade_stock(self,trade_object):
+        pass
+        #form_data = trade_object.prepare()
+        
