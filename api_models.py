@@ -136,6 +136,8 @@ class StockHolding(Holding):
         if type(stock) != Stock:
             raise InvalidHoldingException("StockHoldings must hold stocks.  Got %s instead" % type(stock))
         super().__init__(stock,quantity,current,start,today_change,is_active)
+        self.symbol = stock.symbol
+
        
     @property
     def net_return(self):
@@ -391,7 +393,6 @@ class StockTrade(object):
             raise InvalidTradeException(err)
         
         self._form_token = None
-        self._url_token = None
         self.symbol = stock.symbol
         self.quantity = quantity
 
@@ -415,7 +416,7 @@ class StockTrade(object):
 
     @property
     def form_token(self):
-        return self._token
+        return self._form_token
 
     @form_token.setter
     def form_token(self,token):
@@ -425,7 +426,7 @@ class StockTrade(object):
     def show_max(self):
         return {
             'isShowMax': 1,
-            'symbolTextbox': self.form_data,
+            'symbolTextbox': self.symbol,
             'action': 'showMax'
         }
 

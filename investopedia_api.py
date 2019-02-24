@@ -48,16 +48,17 @@ class InvestopediaSimulatorAPI(object):
             url = self.route('tradestock')
         elif type(trade) == OptionTrade:
             url = self.route('tradeoption')
-            token = self._get_option_trade_form_token()
+            form_token = self._get_option_trade_form_token()
 
         trade.form_token = form_token
         resp = self.session.post(url,data=trade.show_max())
-       
 
-
-        # show max here
-        print("show max")
-
+        shares_match = re.search(r'^A\s*maximum\s*of\s*(\d+)\s*shares',resp.text)
+        if shares_match:
+            max_shares = int(shares_match.group(1))
+            if trade.quantity > max_shares:
+                warnings.warn("Quantity of trade exceeds maximum of %s" % max_shares)
+                return None
 
         resp = self.session.post(url,data=trade.prepare())
         if resp.history:
