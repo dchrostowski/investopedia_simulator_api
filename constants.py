@@ -14,13 +14,13 @@ class SetActiveGameException(Exception):
 class InvalidGameException(Exception):
     pass
 
-class InvalidStockHoldingException(Exception):
+class InvalidStockPositionException(Exception):
     pass
 
-class InvalidStockHoldingException(Exception):
+class InvalidStockPositionException(Exception):
     pass
 
-class InvalidHoldingException(Exception):
+class InvalidPositionException(Exception):
     pass
 
 class InvalidOptionException(Exception):

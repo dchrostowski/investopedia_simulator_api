@@ -4,7 +4,7 @@ import datetime
 from IPython import embed
 import json
 
-from util import Util, UrlHelper
+from utils import Util, UrlHelper
 from titlecase import titlecase
 from constants import *
 
@@ -103,10 +103,10 @@ class Stock(Security):
     def __repr__(self):
         return "%s" % self.symbol
 
-class Holding(object):
+class Position(object):
     def __init__(self,security,quantity,current,start=None, today_change=None, is_active=False):
         if not issubclass(type(security),Security):
-            raise InvalidHoldingException("Must be a security (option or stock)")
+            raise InvalidPositionException("Must be a security (option or stock)")
         self.security = security
         self.quantity = int(quantity)
         self.current = Util.sanitize_number(current)
@@ -131,10 +131,10 @@ class Holding(object):
             self.total_value = self.total_value * 100
             
 
-class StockHolding(Holding):
+class StockPosition(Position):
     def __init__(self,stock,quantity,current,start=None, today_change=None,is_active=False):
         if type(stock) != Stock:
-            raise InvalidHoldingException("StockHoldings must hold stocks.  Got %s instead" % type(stock))
+            raise InvalidPositionException("StockPositions must hold stocks.  Got %s instead" % type(stock))
         super().__init__(stock,quantity,current,start,today_change,is_active)
         self.symbol = stock.symbol
 
@@ -153,10 +153,10 @@ class StockHolding(Holding):
         else:
             return "\n  %s shares of %s (PENDING)\n  current: %s\n" % (self.quantity, self.security.symbol, self.current)
 
-class OptionHolding(Holding):
+class OptionPosition(Position):
     def __init__(self,option,quantity,current,start=None, today_change=None,is_active=False):
         if type(option) != Option:
-            raise InvalidHoldingException("OptionHoldings must hold options.  Got %s instead." % type(option))
+            raise InvalidPositionException("OptionPositions must hold options.  Got %s instead." % type(option))
         super().__init__(option,quantity,current,start,today_change,is_active)
 
         date_strike_match = re.search(r'^(\d{4}\/\d{2}\/\d{2})[^\$]+\$([\d\.]+)$',self.security.name)
@@ -199,11 +199,11 @@ class Portfolio(list):
         self.security_set = set()
 
 class StockPortfolio(Portfolio):
-    def __init__(self,account_value,buying_power,cash,annual_return_pct, holdings):
+    def __init__(self,account_value,buying_power,cash,annual_return_pct, positions):
         super().__init__(account_value,buying_power,cash,annual_return_pct)
         self.net_return = 0
         self.total_value = 0
-        for h in holdings:
+        for h in positions:
             if h.is_active:
                 self.net_return += h.net_return
                 self.total_value += h.total_value
@@ -214,21 +214,21 @@ class StockPortfolio(Portfolio):
         symbol = symbol.upper()
         if symbol not in self.security_set:
             return []
-        holdings_to_return = []
-        for holding in list(self):
-            if holding.security.symbol == symbol:
-                if holding.is_active:
-                    holdings_to_return.append(holding)
-                elif return_pending and not holding.is_active:
-                    holdings_to_return.append(holding)
-                elif not return_pending and not holding.is_active:
+        positions_to_return = []
+        for position in list(self):
+            if position.security.symbol == symbol:
+                if position.is_active:
+                    positions_to_return.append(position)
+                elif return_pending and not position.is_active:
+                    positions_to_return.append(position)
+                elif not return_pending and not position.is_active:
                     continue
 
-        return holdings_to_return
+        return positions_to_return
         
 
 class OptionPortfolio(Portfolio):
-    def __init__(self,account_value, buying_power, cash, annual_return_pct, holdings):
+    def __init__(self,account_value, buying_power, cash, annual_return_pct, positions):
         super().__init__(account_value,buying_power,cash,annual_return_pct)
 
 '''

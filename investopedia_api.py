@@ -9,7 +9,7 @@ import logging
 import copy
 logging.basicConfig(level=logging.INFO)
 
-from util import UrlHelper, Util
+from utils import UrlHelper, Util
 from constants import *
 from api_models import *
 
@@ -189,28 +189,28 @@ class InvestopediaSimulatorAPI(object):
             'symbol': 'td[3]/a[2]/text()',
             'url': 'td[3]/a[2]/@href',
         }
-        holding_td_map = {
+        position_td_map = {
             'quantity': 'td[5]/text()',
             'start': 'td[6]/text()',
             'current': 'td[7]/text()',
             'today_change': 'td[9]/text()'
         }
 
-        holdings = []
+        positions = []
         for tr in rows:
             try:
                 stock_data = {field: tr.xpath(xpr)[0] for field, xpr in stock_td_map.items()}
-                holding_data = {field: tr.xpath(xpr)[0] for field, xpr in holding_td_map.items()}
+                position_data = {field: tr.xpath(xpr)[0] for field, xpr in position_td_map.items()}
             except IndexError as e:
                 raise(e)
                 
 
             stock = Stock(**stock_data)
-            holding = StockHolding(stock=stock,**holding_data, is_active=True)
+            position = StockPosition(stock=stock,**position_data, is_active=True)
 
-            holdings.append(holding)
+            positions.append(position)
         
-        return holdings
+        return positions
 
     def _get_pending_stock_portfolio(self,rows):
         portfolio_data = []
@@ -221,7 +221,7 @@ class InvestopediaSimulatorAPI(object):
             'name': 'td[2]/span/text()|td[2]/span/a/text()',
         }
 
-        td_map_holding = {
+        td_map_position = {
             #'id': 'td[1]/span/span/@id',
             #'cancel_href': 'td[1]/span/span/a[1]/@href',
             #'edit_href': 'td[1]/span/span/a[2]/@href',
@@ -234,7 +234,7 @@ class InvestopediaSimulatorAPI(object):
             'current': 'td[5]/span/text()'
         }
 
-        pending_holdings = []
+        pending_positions = []
         for tr in rows:
             is_cancelled = tr.xpath('td[1]/span/span/span[text()="Cancelled"]')
             if len(is_cancelled) > 0:
@@ -245,20 +245,20 @@ class InvestopediaSimulatorAPI(object):
 
 
             #stock,quantity,start,current,today_change
-            holding_data = {k:tr.xpath(v)[0] for k,v, in td_map_holding.items()}
-            holding_data['quantity'] = re.sub('Qty:\xa0','',holding_data['quantity']).strip()
-            holding_data['current'] = re.sub('Current Price:\xa0','', holding_data['current']).strip()
+            position_data = {k:tr.xpath(v)[0] for k,v, in td_map_position.items()}
+            position_data['quantity'] = re.sub('Qty:\xa0','',position_data['quantity']).strip()
+            position_data['current'] = re.sub('Current Price:\xa0','', position_data['current']).strip()
             
             missing = {
                 'stock': Stock(**stock_data),
                 'today_change': None
             }
 
-            holding_data.update(missing)
-            pending_holdings.append(StockHolding(**holding_data))
+            position_data.update(missing)
+            pending_positions.append(StockPosition(**position_data))
 
         
-        return pending_holdings
+        return pending_positions
 
 
     def _get_stock_portfolio(self):
@@ -280,10 +280,10 @@ class InvestopediaSimulatorAPI(object):
         pending_rows = tree.xpath('//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]')
         active_rows = tree.xpath('//table[@id="stock-portfolio-table"]/tbody/tr[not(contains(@class,"expandable")) and not(contains(@style,"italic"))]')
         
-        pending_holdings = self._get_pending_stock_portfolio(pending_rows)
-        active_holdings = self._get_active_stock_portfolio(active_rows)
-        all_holdings = active_holdings + pending_holdings
-        self._stock_portfolio = StockPortfolio(**portfolio_metadata, holdings=all_holdings)
+        pending_positions = self._get_pending_stock_portfolio(pending_rows)
+        active_positions = self._get_active_stock_portfolio(active_rows)
+        all_positions = active_positions + pending_positions
+        self._stock_portfolio = StockPortfolio(**portfolio_metadata, positions=all_positions)
 
         
 
