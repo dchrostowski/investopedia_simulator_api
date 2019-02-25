@@ -212,49 +212,30 @@ class InvestopediaSimulatorAPI(object):
         
         return positions
 
-    def _get_pending_stock_portfolio(self,rows):
-        portfolio_data = []
+    def _get_pending_stock_portfolio(self):
+        resp = self.session.get(self.route('opentrades'))
+        tree = html.fromstring(resp.text)
 
-        td_map_stock = {
-            'url': 'td[2]/span/a/@href',
-            'symbol': 'td[2]/span/a/text()|td[2]/span/text()',
-            'name': 'td[2]/span/text()|td[2]/span/a/text()',
-        }
-
-        td_map_position = {
-            #'id': 'td[1]/span/span/@id',
-            #'cancel_href': 'td[1]/span/span/a[1]/@href',
-            #'edit_href': 'td[1]/span/span/a[2]/@href',
-            #'symbol': 'td[2]/span/a/text()',
-            #'url': 'td[2]/span/a/@href',
-            #'company_name': 'td[2]/span/text()',
-            'quantity': 'td[3]/span/text()',
-            #'info': 'td[4]/span/text()',
-            #'start': 'td[5]/span/text()',
-            'current': 'td[5]/span/text()'
-        }
-
+        rows = tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
         pending_positions = []
+
         for tr in rows:
-            is_cancelled = tr.xpath('td[1]/span/span/span[text()="Cancelled"]')
-            if len(is_cancelled) > 0:
-                continue
-
-            stock_data = {k:tr.xpath(v)[0] for k,v in td_map_stock.items()}
+            symbol = tr.xpath('td[5]/a/text()')[0]
+            url = tr.xpath('td[5]/a/@href')[0]
+            stock = Stock(name=symbol,symbol=symbol,url=url)
 
 
-
-            #stock,quantity,start,current,today_change
-            position_data = {k:tr.xpath(v)[0] for k,v, in td_map_position.items()}
-            position_data['quantity'] = re.sub('Qty:\xa0','',position_data['quantity']).strip()
-            position_data['current'] = re.sub('Current Price:\xa0','', position_data['current']).strip()
-            
-            missing = {
-                'stock': Stock(**stock_data),
-                'today_change': None
+            quantity = int(tr.xpath('td[6]/text()')[0])
+            position_data = {
+                'stock': stock,
+                'quantity': quantity,
+                'start': None,
+                'current':'0',
+                'today_change':None,
+                'is_active': False,
             }
 
-            position_data.update(missing)
+
             pending_positions.append(StockPosition(**position_data))
 
         
@@ -280,8 +261,9 @@ class InvestopediaSimulatorAPI(object):
         pending_rows = tree.xpath('//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]')
         active_rows = tree.xpath('//table[@id="stock-portfolio-table"]/tbody/tr[not(contains(@class,"expandable")) and not(contains(@style,"italic"))]')
         
-        pending_positions = self._get_pending_stock_portfolio(pending_rows)
+        
         active_positions = self._get_active_stock_portfolio(active_rows)
+        pending_positions = self._get_pending_stock_portfolio()
         all_positions = active_positions + pending_positions
         self._stock_portfolio = StockPortfolio(**portfolio_metadata, positions=all_positions)
 

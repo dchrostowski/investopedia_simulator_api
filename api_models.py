@@ -104,18 +104,23 @@ class Stock(Security):
         return "%s" % self.symbol
 
 class Position(object):
-    def __init__(self,security,quantity,current,start=None, today_change=None, is_active=False):
+    def __init__(self,security,quantity,current=None,start=None, today_change=None, is_active=False):
         if not issubclass(type(security),Security):
             raise InvalidPositionException("Must be a security (option or stock)")
         self.security = security
-        self.quantity = int(quantity)
-        self.current = Util.sanitize_number(current)
+        quantity = int(quantity)
+        total_value = None
         today_change_percent = None
-        if start is not None and today_change is not None:
+
+        if start is not None and today_change is not None and current is not None:
             is_active = True
+
         if is_active:
+            current = Util.sanitize_number(current)
             start = Util.sanitize_number(start)
             change_match = re.search(r'^\$([\d\.]+)\(([\d\.]+)\s?\%\)\s*?$',today_change)
+            current = Util.sanitize_number(current)
+            total_value = float(quantity*current)
             if change_match:
                 today_change = float(change_match.group(1))
                 today_change_percent = float(change_match.group(2))
@@ -124,15 +129,16 @@ class Position(object):
         self.start = start
         self.today_change = today_change
         self.today_change_percent = today_change_percent
-
-        self.total_value = self.current * self.quantity
+        self.current = current
+        self.quantity = quantity
+        self.total_value = total_value
             
         if self.security.security_type == Option:
             self.total_value = self.total_value * 100
             
 
 class StockPosition(Position):
-    def __init__(self,stock,quantity,current,start=None, today_change=None,is_active=False):
+    def __init__(self,stock,quantity,current=None,start=None, today_change=None,is_active=False):
         if type(stock) != Stock:
             raise InvalidPositionException("StockPositions must hold stocks.  Got %s instead" % type(stock))
         super().__init__(stock,quantity,current,start,today_change,is_active)
@@ -216,15 +222,21 @@ class StockPortfolio(Portfolio):
             return []
         positions_to_return = []
         for position in list(self):
-            if position.security.symbol == symbol:
-                if position.is_active:
-                    positions_to_return.append(position)
-                elif return_pending and not position.is_active:
-                    positions_to_return.append(position)
-                elif not return_pending and not position.is_active:
-                    continue
+            if position.security.symbol.upper() == symbol.upper():
+                positions_to_return.append(position)
 
         return positions_to_return
+
+    def total_positions(self,include_pending=True):
+        if include_pending:
+            return len(self)
+        else:
+            cnt = 0
+            for position in list(self):
+                if position.is_active:
+                    cnt += 1
+            return cnt
+
         
 
 class OptionPortfolio(Portfolio):

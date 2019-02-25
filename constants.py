@@ -50,6 +50,7 @@ class Constants(object):
         'tradestock': '/trade/tradestock.aspx',
         'tradestock_submit': '/trade/tradestockpreview.aspx',
         'tradeoption': '/trade/TradeOptions.aspx',
+        'opentrades': '/trade/showopentrades.aspx'
     }
 
 

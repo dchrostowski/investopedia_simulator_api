@@ -6,6 +6,8 @@ import re
 class Util(object):
     @staticmethod
     def sanitize_number(num_str):
+        if type(num_str) == float:
+            return num_str
         return float(re.sub(r'(?:\$|\,|\s|\%)', '',num_str))
 
 
