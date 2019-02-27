@@ -104,7 +104,7 @@ class Stock(Security):
         return "%s" % self.symbol
 
 class Position(object):
-    def __init__(self,security,quantity,current=None,start=None, today_change=None, is_active=False):
+    def __init__(self,security,quantity,current=None,start=None, today_change=None, is_active=True):
         if not issubclass(type(security),Security):
             raise InvalidPositionException("Must be a security (option or stock)")
         self.security = security
@@ -112,15 +112,16 @@ class Position(object):
         total_value = None
         today_change_percent = None
 
-        if start is not None and today_change is not None and current is not None:
-            is_active = True
+        if current is not None:
+            current = Util.sanitize_number(current)
+            total_value = float(current * quantity)
+
+        if start is None or today_change is None or current is None:
+            is_active = False
 
         if is_active:
-            current = Util.sanitize_number(current)
             start = Util.sanitize_number(start)
             change_match = re.search(r'^\$([\d\.]+)\(([\d\.]+)\s?\%\)\s*?$',today_change)
-            current = Util.sanitize_number(current)
-            total_value = float(quantity*current)
             if change_match:
                 today_change = float(change_match.group(1))
                 today_change_percent = float(change_match.group(2))
@@ -209,10 +210,14 @@ class StockPortfolio(Portfolio):
         super().__init__(account_value,buying_power,cash,annual_return_pct)
         self.net_return = 0
         self.total_value = 0
+        self.pending_total_value = 0
         for h in positions:
             if h.is_active:
                 self.net_return += h.net_return
                 self.total_value += h.total_value
+            elif not h.is_active:
+                if h.current is not None:
+                    self.pending_total_value += h.total_value
             self.append(h)
             self.security_set.add(h.security.symbol)
 

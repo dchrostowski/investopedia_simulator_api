@@ -7,7 +7,7 @@ from urllib import parse
 import warnings
 import logging
 import copy
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 from utils import UrlHelper, Util
 from constants import *
@@ -220,19 +220,33 @@ class InvestopediaSimulatorAPI(object):
         pending_positions = []
 
         for tr in rows:
+
+            buy_or_sell = re.search(r'(Buy|Sell)',tr.xpath('td[4]/text()')[0]).group(1)
             symbol = tr.xpath('td[5]/a/text()')[0]
             url = tr.xpath('td[5]/a/@href')[0]
             stock = Stock(name=symbol,symbol=symbol,url=url)
+            current = None
+
+            if buy_or_sell == 'Buy':
+                # will only assign a "current price" to pending Buy market / stop / limit orders
+                current = tr.xpath('td[7]/text()')[0]
+                cmatch = re.search(r'(?:Stop|Limit)[\s?\-]+\$([\d\.]+)',current)
+                if cmatch:
+                    current = cmatch.group(1)
+                else:
+                    current = self.get_quote(symbol).last
 
 
             quantity = int(tr.xpath('td[6]/text()')[0])
+
+
             position_data = {
                 'stock': stock,
                 'quantity': quantity,
                 'start': None,
-                'current':'0',
                 'today_change':None,
                 'is_active': False,
+                'current': current
             }
 
 
