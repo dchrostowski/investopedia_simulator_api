@@ -36,8 +36,11 @@ class InvalidOrderDurationException(Exception):
     pass
 class InvalidTradeException(Exception):
     pass
-
 class TradeTokenNotSetException(Exception):
+    pass
+class InvalidOptionChainException(Exception):
+    pass
+class InvalidOptionTypeException(Exception):
     pass
 
 class Constants(object):
@@ -50,8 +53,11 @@ class Constants(object):
         'tradestock': '/trade/tradestock.aspx',
         'tradestock_submit': '/trade/tradestockpreview.aspx',
         'tradeoption': '/trade/TradeOptions.aspx',
+        'tradeoption': '/trade/getquote.aspx',
         'opentrades': '/trade/showopentrades.aspx'
     }
+
+    OPTIONS_QUOTE_URL = 'https://globaloptions.xignite.com/xglobaloptions.json/GetAllEquityOptionChain'
 
 
     STOCK_TRADE_TRANSACTION_TYPES = {
