@@ -7,7 +7,7 @@ from urllib import parse
 import warnings
 import logging
 import copy
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 from utils import UrlHelper, Util
 from constants import *
@@ -20,10 +20,15 @@ class InvestopediaSimulatorAPI(object):
         self.auth_cookie_value = auth_cookie
         self._session=None
         self._stock_portfolio = None
+        self._option_portfolio = None
         self._games = None
-        
         self._active_game = None
+
+        self._user_id = None
         self.login()
+
+        self.option_token = None
+        self.option_user_id = None
     
     @property
     def session(self):
@@ -34,6 +39,13 @@ class InvestopediaSimulatorAPI(object):
     def route(self,page_name):
         return UrlHelper.append_path(Constants.BASE_URL,self.routes[page_name])
 
+    @property
+    def user_id(self):
+        if self._user_id is None:
+            self.login()
+        return self._user_id
+
+    
     @property
     def routes(self):
         return Constants.PATHS
@@ -176,10 +188,28 @@ class InvestopediaSimulatorAPI(object):
         resp = self.session.get(self.route('home'))
         if resp.status_code != 200:
             raise InvestopediaAuthException("Got status code %s when fetching home %s" % (resp.status_code,self.route('home')))
+
         tree = html.fromstring(resp.text)
         sign_out_link = tree.xpath('//div[@class="left-nav"]//ul/li/a[text()="Sign Out"]')
         if len(sign_out_link) < 1:
             raise InvestopediaAuthException("Could not authenticate with cookie")
+
+        awards_url = tree.xpath('//div[@class="sim-page"]//div[contains(@class,"box") and contains(@class,"info")]/div[contains(@class,"box")]/div[@class="title"]/h2/a[text()="Your Awards"]/@href')[0]
+        awards_qs = UrlHelper.get_query_params(awards_url)
+        user_id = awards_qs['userId']
+        self._user_id = user_id
+
+    @property
+    def option_portfolio(self):
+        if self._option_portfolio is None:
+            self._get_option_portfolio()
+        return self._option_portfolio
+
+    def _get_option_portfolio(self):
+        pass
+
+    def lookup_option_change(self,symbol):
+        self.session.get
 
     @property
     def stock_portfolio(self):
@@ -208,7 +238,6 @@ class InvestopediaSimulatorAPI(object):
             except IndexError as e:
                 raise(e)
                 
-
             stock = Stock(**stock_data)
             position = StockPosition(stock=stock,**position_data, is_active=True)
 
@@ -329,4 +358,51 @@ class InvestopediaSimulatorAPI(object):
     def trade_stock(self,trade_object):
         pass
         #form_data = trade_object.prepare()
+
+    def option_lookup(self,symbol):
+
+        if self.option_token is None or self.option_user_id is None:
+            resp = self.session.get(self.route('tradeoption'))
+            tree = html.fromstring(resp.text)
+
+            token = None
+            user_id = None
+            param_script = tree.xpath('//script[contains(text(),"quoteOptions")]/text()')[0]
+            param_search = re.search(r'\#get\-quote\-options\'\)\,\s*\'(.+)\'\s*\,\s*(\d+)\s*\)\;',param_script)
+            if param_search:
+                self.option_token = param_search.group(1)
+                self.option_user_id = param_search.group(2)
+
+        option_quote_qp = {
+            'IdentifierType': 'Symbol',
+            'Identifier': symbol,
+            'SymbologyType':'DTNSymbol',
+            'OptionExchange': None,
+            '_token': self.option_token,
+            '_token_userid': self.option_user_id
+        }
+
+        url = UrlHelper.set_query(Constants.OPTIONS_QUOTE_URL, option_quote_qp)
+
+        resp = requests.get(url)
+        option_chain = json.loads(resp.text)
+        calls = []
+        puts = []
+        stock = self.get_quote(symbol)
+
+        for e in option_chain['Expirations']:
+            for call in e['Calls']:
+                calls.append(OptionContract(call))
+            for put in e['Puts']:
+                puts.append(OptionContract(put))
+
+        call_option_chain = OptionChain(calls)
+        put_option_chain = OptionChain(puts)
+        option_chain_lookup = OptionChainLookup(stock=stock, calls=call_option_chain, puts=put_option_chain)
+        return option_chain_lookup
+
+
+        
+
+
         

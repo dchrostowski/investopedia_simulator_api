@@ -388,6 +388,37 @@ class OrderDuration(object):
     def GOOD_TILL_CANCELLED(cls):
         return cls('GOOD_TILL_CANCELLED')
 
+class OptionChainLookup(object):
+    def __init__(self,stock,calls,puts):
+        self.calls = calls
+        self.puts = puts
+
+class OptionChain(list):
+    def __init__(self,contracts):
+        for contract in contracts:
+            if type(contract) != OptionContract:
+                raise InvalidOptionChainException("A non OptionContract object was passed to OptionChain")
+            self.append(contract)
+    
+    @classmethod
+    def parse(cls,html):
+        pass
+
+class OptionContract(object):
+    def __init__(self,option_dict):
+        self.raw = option_dict
+        self.contract_name = option_dict['Symbol']
+        self.contract_type = option_dict['Type']
+        exp_date_str = option_dict['ExpirationDate']
+        self.expiration = datetime.datetime.strptime(exp_date_str,'%m/%d/%Y')
+        self.strike_price = option_dict['StrikePrice']
+        self.last = option_dict['Last'] 
+        self.bid = option_dict['Bid']
+        self.ask = option_dict['Ask']
+        self.volume = option_dict['Volume']
+        self.open_int = option_dict['OpenInterest']
+
+
 class OptionTrade(object):
     pass
 
