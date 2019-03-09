@@ -139,6 +139,10 @@ class InvestopediaSimulatorAPI(object):
                 stock_quote_data['change'] = change_matches.group(1)
                 stock_quote_data['change_percent'] = change_matches.group(2)
 
+            else:
+                stock_quote_data['change'] = 0
+                stock_quote_data['change_percent'] = 0
+
             quote = StockQuote(**stock_quote_data)
             return quote
 
