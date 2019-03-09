@@ -39,7 +39,7 @@ print("cash: %s" % p.cash)
 print("buying power: %s" % p.buying_power)
 """
 
-picks = ['ENSG','DMLP','XLNX','CSWI','FCAP','RH','KL','FF','FTNT','MLR','ACNB','FNKO','IRBT','CDNS']
+picks = ['GOOG','AAPL','AMZN']
 
 
 print("START TRADE STUFF")
@@ -47,11 +47,30 @@ print("----------------------")
 quote = client.get_quote('FCAP')
 print(quote)
 
+# How to do an option chain lookup
+option_lookup_symbol = 'TEO'
+print("doing an option chain lookup for %s" % option_lookup_symbol)
+ocl = client.option_lookup(option_lookup_symbol)
 
+ # ocl.calls and ocl.puts are simply a list of available option contracts
 
-#td = OrderDuration.GOOD_TILL_CANCELLED()
-#ot = OrderType('Market')
-#tt = TransactionType.STOCK_BUY()
+call_option1 = ocl.calls[0]
+call_option2 = ocl.calls[1]
+
+put_option1 = ocl.puts[0]
+put_option2 = ocl.puts[1]
+
+print("strike price for first call option in chain: %s" % call_option1.strike_price)
+print("expiration for first call option in chain: %s" % call_option1.expiration)
+print("strike price for second call option in chain: %s" % call_option2.strike_price)
+print("expiration for second call option in chain: %s" % call_option2.expiration)
+print("\n\n")
+
+print("strike price for first put option in chain: %s" % put_option1.strike_price)
+print("expiration for first put option in chain: %s" % put_option1.expiration)
+print("strike price for second put option in chain: %s" % put_option2.strike_price)
+print("expiration for second put option in chain: %s" % put_option2.expiration)
+
 
 for pick in picks:
     stocks = portfolio.find_by_symbol(pick)
@@ -72,6 +91,7 @@ for pick in picks:
 
             prepped_trade = client.prepare_trade(trade)
             print(prepped_trade)
-            prepped_trade.execute()
+            # uncomment to execute the trade
+            #prepped_trade.execute()
         else:
             print("Couldn't find %s" % pick)

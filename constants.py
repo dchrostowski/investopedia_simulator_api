@@ -52,7 +52,6 @@ class Constants(object):
         'lookup': '/stocks/symlookup.aspx',
         'tradestock': '/trade/tradestock.aspx',
         'tradestock_submit': '/trade/tradestockpreview.aspx',
-        'tradeoption': '/trade/TradeOptions.aspx',
         'tradeoption': '/trade/getquote.aspx',
         'opentrades': '/trade/showopentrades.aspx'
     }
