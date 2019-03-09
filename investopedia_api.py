@@ -245,12 +245,15 @@ class InvestopediaSimulatorAPI(object):
         
         return positions
 
-    def _get_pending_stock_portfolio(self):
-        resp = self.session.get(self.route('opentrades'))
-        tree = html.fromstring(resp.text)
+    def _get_pending_stock_portfolio(self, portfolio_tree):
+        open_trades_resp = self.session.get(self.route('opentrades'))
+        ot_tree = html.fromstring(open_trades_resp.text)
 
-        rows = tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
+        rows = ot_tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
+        #//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]
+
         pending_positions = []
+
 
         for tr in rows:
 
@@ -264,26 +267,31 @@ class InvestopediaSimulatorAPI(object):
                 # will only assign a "current price" to pending Buy market / stop / limit orders
                 current = tr.xpath('td[7]/text()')[0]
                 cmatch = re.search(r'(?:Stop|Limit)[\s?\-]+\$([\d\.]+)',current)
-                if cmatch:
+                if cmatch and current != 'n/a':
                     current = cmatch.group(1)
                 else:
-                    current = self.get_quote(symbol).last
+                    try:
+                        order_id = tr.xpath('td[1]/text()')[0]
+                        current_price = portfolio_tree.xpath('//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]//span[contains(@id,"%s")]/ancestor::tr/td[5]/span/text()' % order_id)[0]
+                        current = re.sub(r'[^\d\.]+','',current_price)
+                    except IndexError as e:
+                        current = self.get_quote(symbol).last
 
 
-            quantity = int(tr.xpath('td[6]/text()')[0])
+                quantity = int(tr.xpath('td[6]/text()')[0])
 
 
-            position_data = {
-                'stock': stock,
-                'quantity': quantity,
-                'start': None,
-                'today_change':None,
-                'is_active': False,
-                'current': current
-            }
+                position_data = {
+                    'stock': stock,
+                    'quantity': quantity,
+                    'start': None,
+                    'today_change':None,
+                    'is_active': False,
+                    'current': current
+                }
 
 
-            pending_positions.append(StockPosition(**position_data))
+                pending_positions.append(StockPosition(**position_data))
 
         
         return pending_positions
@@ -310,7 +318,7 @@ class InvestopediaSimulatorAPI(object):
         
         
         active_positions = self._get_active_stock_portfolio(active_rows)
-        pending_positions = self._get_pending_stock_portfolio()
+        pending_positions = self._get_pending_stock_portfolio(tree)
         all_positions = active_positions + pending_positions
         self._stock_portfolio = StockPortfolio(**portfolio_metadata, positions=all_positions)
 
