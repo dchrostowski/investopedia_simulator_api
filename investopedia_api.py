@@ -120,20 +120,16 @@ class InvestopediaSimulatorAPI(object):
 
     def get_quote(self,symbol):
         url = self.route('lookup')
-        url = UrlHelper.set_query(url,{'s':symbol})
-        resp = self.session.get(url)
+        resp = self.session.post(url, data={'symbol':symbol})
         if resp.status_code == 200:
             tree = html.fromstring(resp.text)
             xpath_map = {
-                'name': '//section[@id="Overview"]/div[@class="inner"]//span[@id="quoteName"]/text()',
-                'symbol': '//section[@id="Overview"]/div[@class="inner"]//span[@id="quoteSymbol"]/text()',
-                'exchange': '//section[@id="Overview"]/div[@class="inner"]//span[@id="quoteExchange"]/text()',
-                'last': '//section[@id="Overview"]//table[@class="ticker"]//tr/td[@id="quotePrice"]/text()',
-                'change': '//section[@id="Overview"]//table[@class="ticker"]//tr/td[@class="value-change"]/span[@id="quoteChange"]/text()',
-                #'change_percent': '//table[@id="Table2"]/tbody/tr/th[text()="% Change"]/following-sibling::td/text()',
-                #'high': '//table[@id="Table2"]/tbody/tr/th[text()="Day\'s High"]/following-sibling::td/text()',
-                #'low': '//table[@id="Table2"]/tbody/tr/th[text()="Day\'s Low"]/following-sibling::td/text()',
-                #'volume': '//table[@id="Table2"]/tbody/tr/th[text()="Volume"]/following-sibling::td/text()',
+                'name': '//h3[@class="companyname"]/text()',
+                'symbol': '//table[contains(@class,"table3")]/tbody/tr[1]/td[1]/h3[contains(@class,"pill")]/text()',
+                'exchange': '//table[contains(@class,"table3")]//div[@class="marketname"]/text()',
+                'last': '//table[@id="Table2"]/tbody/tr[1]/th[contains(text(),"Last")]/following-sibling::td/text()',
+                'change': '//table[@id="Table2"]/tbody/tr[2]/th[contains(text(),"Change")]/following-sibling::td/text()',
+                'change_percent': '//table[@id="Table2"]/tbody/tr[3]/th[contains(text(),"% Change")]/following-sibling::td/text()'
             }
             try:
                 stock_quote_data = {k: str(tree.xpath(v)[0]).strip() for k,v in xpath_map.items()}
@@ -142,18 +138,9 @@ class InvestopediaSimulatorAPI(object):
                 return
             
             
-            matches = re.search(r'^\(([^\)]+)\)$', stock_quote_data['exchange'])
-            if matches:
-                stock_quote_data['exchange'] = matches.group(1)
-            
-            change_matches = re.search(r'(-?\d+?\.?\d+)\s*\((-?\d+?\.\d+)\%\)',stock_quote_data['change'])
-            if change_matches:
-                stock_quote_data['change'] = change_matches.group(1)
-                stock_quote_data['change_percent'] = change_matches.group(2)
-
-            else:
-                stock_quote_data['change'] = 0
-                stock_quote_data['change_percent'] = 0
+            exchange_matches = re.search(r'^\(([^\)]+)\)$', stock_quote_data['exchange'])
+            if exchange_matches:
+                stock_quote_data['exchange'] = exchange_matches.group(1)
 
             quote = StockQuote(**stock_quote_data)
             return quote
@@ -245,12 +232,15 @@ class InvestopediaSimulatorAPI(object):
         
         return positions
 
-    def _get_pending_stock_portfolio(self):
-        resp = self.session.get(self.route('opentrades'))
-        tree = html.fromstring(resp.text)
+    def _get_pending_stock_portfolio(self, portfolio_tree):
+        open_trades_resp = self.session.get(self.route('opentrades'))
+        ot_tree = html.fromstring(open_trades_resp.text)
 
-        rows = tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
+        rows = ot_tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
+        #//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]
+
         pending_positions = []
+
 
         for tr in rows:
 
@@ -264,26 +254,31 @@ class InvestopediaSimulatorAPI(object):
                 # will only assign a "current price" to pending Buy market / stop / limit orders
                 current = tr.xpath('td[7]/text()')[0]
                 cmatch = re.search(r'(?:Stop|Limit)[\s?\-]+\$([\d\.]+)',current)
-                if cmatch:
+                if cmatch and current != 'n/a':
                     current = cmatch.group(1)
                 else:
-                    current = self.get_quote(symbol).last
+                    try:
+                        order_id = tr.xpath('td[1]/text()')[0]
+                        current_price = portfolio_tree.xpath('//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]//span[contains(@id,"%s")]/ancestor::tr/td[5]/span/text()' % order_id)[0]
+                        current = re.sub(r'[^\d\.]+','',current_price)
+                    except IndexError as e:
+                        current = self.get_quote(symbol).last
 
 
-            quantity = int(tr.xpath('td[6]/text()')[0])
+                quantity = int(tr.xpath('td[6]/text()')[0])
 
 
-            position_data = {
-                'stock': stock,
-                'quantity': quantity,
-                'start': None,
-                'today_change':None,
-                'is_active': False,
-                'current': current
-            }
+                position_data = {
+                    'stock': stock,
+                    'quantity': quantity,
+                    'start': None,
+                    'today_change':None,
+                    'is_active': False,
+                    'current': current
+                }
 
 
-            pending_positions.append(StockPosition(**position_data))
+                pending_positions.append(StockPosition(**position_data))
 
         
         return pending_positions
@@ -310,7 +305,7 @@ class InvestopediaSimulatorAPI(object):
         
         
         active_positions = self._get_active_stock_portfolio(active_rows)
-        pending_positions = self._get_pending_stock_portfolio()
+        pending_positions = self._get_pending_stock_portfolio(tree)
         all_positions = active_positions + pending_positions
         self._stock_portfolio = StockPortfolio(**portfolio_metadata, positions=all_positions)
 

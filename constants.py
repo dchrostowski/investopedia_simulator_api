@@ -49,7 +49,7 @@ class Constants(object):
         'portfolio': '/portfolio/',
         'games': '/game',
         'home': '/home.aspx',
-        'lookup': '/stocks/symlookup.aspx',
+        'lookup': '/ajax/quotebox.aspx',
         'tradestock': '/trade/tradestock.aspx',
         'tradestock_submit': '/trade/tradestockpreview.aspx',
         'tradeoption': '/trade/getquote.aspx',
