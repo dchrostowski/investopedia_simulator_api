@@ -121,7 +121,7 @@ class InvestopediaSimulatorAPI(object):
     def get_quote(self,symbol):
         url = self.route('lookup')
         resp = self.session.post(url, data={'symbol':symbol})
-        if resp.status_code == 200:
+        if resp.status_code == 200 and int(resp.headers['content-length']) > 0:
             tree = html.fromstring(resp.text)
             xpath_map = {
                 'name': '//h3[@class="companyname"]/text()',
