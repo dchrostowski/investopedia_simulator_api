@@ -264,21 +264,20 @@ class InvestopediaSimulatorAPI(object):
                     except IndexError as e:
                         current = self.get_quote(symbol).last
 
-
-                quantity = int(tr.xpath('td[6]/text()')[0])
-
-
-                position_data = {
-                    'stock': stock,
-                    'quantity': quantity,
-                    'start': None,
-                    'today_change':None,
-                    'is_active': False,
-                    'current': current
-                }
+            quantity = int(tr.xpath('td[6]/text()')[0])
 
 
-                pending_positions.append(StockPosition(**position_data))
+            position_data = {
+                'stock': stock,
+                'quantity': quantity,
+                'start': None,
+                'today_change':None,
+                'is_active': False,
+                'current': current
+            }
+
+
+            pending_positions.append(StockPosition(**position_data))
 
         
         return pending_positions
