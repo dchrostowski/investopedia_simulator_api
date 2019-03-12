@@ -388,10 +388,14 @@ class OrderDuration(object):
     def GOOD_TILL_CANCELLED(cls):
         return cls('GOOD_TILL_CANCELLED')
 
-class OptionChainLookup(object):
+class OptionChainLookup(dict):
     def __init__(self,stock,calls,puts):
         self.calls = calls
         self.puts = puts
+
+        for contract in self.calls + self.puts:
+            self[contract.symbol] = contract
+
 
 class OptionChain(list):
     def __init__(self,contracts):
@@ -405,18 +409,103 @@ class OptionChain(list):
         pass
 
 class OptionContract(object):
-    def __init__(self,option_dict):
-        self.raw = option_dict
-        self.contract_name = option_dict['Symbol']
-        self.contract_type = option_dict['Type']
-        exp_date_str = option_dict['ExpirationDate']
-        self.expiration = datetime.datetime.strptime(exp_date_str,'%m/%d/%Y')
-        self.strike_price = option_dict['StrikePrice']
-        self.last = option_dict['Last'] 
-        self.bid = option_dict['Bid']
-        self.ask = option_dict['Ask']
-        self.volume = option_dict['Volume']
-        self.open_int = option_dict['OpenInterest']
+    def __init__(self,option_dict=None,symbol=None):
+        if option_dict is not None:
+            self.raw = option_dict
+            self.contract_name = option_dict['Symbol']
+            self.base_symbol = option_dict['BaseSymbol']
+            self.contract_type = option_dict['Type']
+            exp_date_str = option_dict['ExpirationDate']
+            self.expiration = datetime.datetime.strptime(exp_date_str,'%m/%d/%Y')
+            self.strike_price = option_dict['StrikePrice']
+            self._last = option_dict['Last']
+            self._bid = option_dict['Bid']
+            self._ask = option_dict['Ask']
+            self._volume = option_dict['Volume']
+            self._open_int = option_dict['OpenInterest']
+
+        elif symbol is not None:
+            re_search = re.search(r'^(\D+)(\d\d)(\d\d)([A-X])([\d\.]+$')
+            if re_search is None or len(re_searc.groups() != 5):
+                raise InvalidOptionException("Could not parse option symbol '%s'" % symbol)
+            self.base_symbol = re_search.group(1)
+            exp_year = int(int(re_search.group(2)) + 2000)
+            exp_day = int(re_search.group(3))
+            month_code = re_search.group(4)
+            if month_code not in Constants.OPTION_MONTH_CODES:
+                raise InvalidOptionException("Invalid month code '%s'" % month_code)
+            self.strike_price = float(re_search.group(5))
+
+            month_and_type_info = Constants.OPTION_MONTH_CODES[month_code]
+            exp_month = month_and_type_info['month']
+
+            self.contract_type = month_and_type_info['type']
+            self.expiration = datetime.date(exp_year,exp_month,exp_day)
+            self.contract_name = symbol
+            
+
+            self._bid = None
+            self._ask = None
+            self._volume = None
+            self._open_int = None
+
+    @staticmethod
+    def option_chain_lookup(token,token_userid,symbol):
+        pass
+
+
+    def do_quote_lookup(self):
+        pass
+
+    
+
+    @property
+    def bid(self):
+        if self._bid is None:
+            self.do_quote_lookup()
+        return self._bid
+
+    @property
+    def last(self):
+        if self._last is None:
+            self.do_quote_lookup()
+        return self._last
+
+    @property
+    def ask(self):
+        if self._ask is None:
+            self.do_quote_lookup()
+        return self._ask
+
+    @property
+    def volume(self):
+        if self._volume is None:
+            self.do_quote_lookup()
+        return self._volume
+
+    @property
+    def open_int(self):
+        if self._open_int is None:
+            self.do_quote_lookup()
+        return self._open_int
+
+
+    @property
+    def current(self):
+        return self.last
+
+    @property
+    def symbol(self):
+        return self.contract_name
+
+
+                
+
+                
+
+            
+
+    
 
 
 class OptionTrade(object):

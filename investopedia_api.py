@@ -193,10 +193,27 @@ class InvestopediaSimulatorAPI(object):
         return self._option_portfolio
 
     def _get_option_portfolio(self):
+        resp = self.session.get(self.route('portfolio'))
+        tree = html.fromstring(resp.content.decode())
+
+        pending_rows = tree.xpath('//table[@id="option-portfolio-table"]//tr[contains(@style,"italic")]')
+        active_rows = tree.xpath('//table[@id="option-portfolio-table"]/tbody/tr[not(contains(@class,"expandable")) and not(contains(@style,"italic"))]')
+
+
+        active_contracts = self._get_active_option_portfolio(active_rows)
+        pending_contracts = self._get_pending_option_portfolio(tree)
+
+
+        embed()
+
+        all_contracts = active_contracts + pending_contracts
+        #self._option_portfolio = StockPortfolio(**portfolio_metadata, positions=all_positions)
+
+    def _get_active_option_portfolio(self,rows):
         pass
 
-    def lookup_option_change(self,symbol):
-        self.session.get
+    def _get_pending_option_portfolio(self,tree):
+        pass
 
     @property
     def stock_portfolio(self):
@@ -236,7 +253,8 @@ class InvestopediaSimulatorAPI(object):
         open_trades_resp = self.session.get(self.route('opentrades'))
         ot_tree = html.fromstring(open_trades_resp.text)
 
-        rows = ot_tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
+
+        rows = ot_tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td/a[contains(@href,"Stock")]/ancestor::tr')
         #//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]
 
         pending_positions = []
@@ -305,6 +323,7 @@ class InvestopediaSimulatorAPI(object):
         
         active_positions = self._get_active_stock_portfolio(active_rows)
         pending_positions = self._get_pending_stock_portfolio(tree)
+
         all_positions = active_positions + pending_positions
         self._stock_portfolio = StockPortfolio(**portfolio_metadata, positions=all_positions)
 
