@@ -36,19 +36,15 @@ class InvestopediaSimulatorAPI(object):
             self.login()
         return self._session
 
+
     def route(self,page_name):
-        return UrlHelper.append_path(Constants.BASE_URL,self.routes[page_name])
+        return UrlHelper.route(page_name)
 
     @property
     def user_id(self):
         if self._user_id is None:
             self.login()
         return self._user_id
-
-    
-    @property
-    def routes(self):
-        return Constants.PATHS
 
 
     def prepare_trade(self,trade):

@@ -4,12 +4,12 @@ from IPython import embed
 from investopedia_api import InvestopediaSimulatorAPI
 from api_models import *
 
-# cookie should look like {auth_cookie:'abcdabcd1234...'}
+# cookie should look like {"here I'm just using a json object with multiple cookies defined"}
 with open('auth_cookie.json') as ifh:
-    cookie = json.load(ifh)
+    cookies = json.load(ifh)
 
 # Instantiate as you see fit, doesn't need to be a keywork arg
-client = InvestopediaSimulatorAPI(**cookie)
+client = InvestopediaSimulatorAPI(cookies['default'])
 portfolio = client.stock_portfolio
 
 

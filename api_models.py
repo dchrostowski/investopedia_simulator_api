@@ -7,6 +7,7 @@ import json
 from utils import Util, UrlHelper
 from titlecase import titlecase
 from constants import *
+from session_singleton import Session2
 
 class Game(object):
     def __init__(self,name,url):
@@ -408,15 +409,19 @@ class OptionChain(list):
     def parse(cls,html):
         pass
 
+class Derp(object):
+    def __init__(self):
+        print("derp started, see if can get session and navigate to portfolio")
+        self.session = Session2()
+
 class OptionContract(object):
-    def __init__(self,option_dict=None,symbol=None):
+    def __init__(self,option_dict=None,contract_name=None):
         if option_dict is not None:
             self.raw = option_dict
             self.contract_name = option_dict['Symbol']
             self.base_symbol = option_dict['BaseSymbol']
             self.contract_type = option_dict['Type']
-            exp_date_str = option_dict['ExpirationDate']
-            self.expiration = datetime.datetime.strptime(exp_date_str,'%m/%d/%Y')
+            self.expiration = datetime.datetime.strptime(option_dict['ExpirationDate'],'%m/%d/%Y')
             self.strike_price = option_dict['StrikePrice']
             self._last = option_dict['Last']
             self._bid = option_dict['Bid']
@@ -424,7 +429,7 @@ class OptionContract(object):
             self._volume = option_dict['Volume']
             self._open_int = option_dict['OpenInterest']
 
-        elif symbol is not None:
+        elif contract_name is not None:
             re_search = re.search(r'^(\D+)(\d\d)(\d\d)([A-X])([\d\.]+$')
             if re_search is None or len(re_searc.groups() != 5):
                 raise InvalidOptionException("Could not parse option symbol '%s'" % symbol)
@@ -441,7 +446,7 @@ class OptionContract(object):
 
             self.contract_type = month_and_type_info['type']
             self.expiration = datetime.date(exp_year,exp_month,exp_day)
-            self.contract_name = symbol
+            self.contract_name = contract_name
             
 
             self._bid = None
@@ -504,10 +509,6 @@ class OptionContract(object):
                 
 
             
-
-    
-
-
 class OptionTrade(object):
     pass
 

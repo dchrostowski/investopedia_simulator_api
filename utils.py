@@ -1,4 +1,8 @@
+from constants import Constants
+
 from IPython import embed
+
+
 
 from urllib import parse
 import re
@@ -43,3 +47,11 @@ class UrlHelper(object):
         query_str = parse.urlsplit(url).query
         query_params = parse.parse_qsl(query_str)
         return dict(query_params)
+
+    routes = Constants.PATHS
+
+    @classmethod
+    def route(cls,page_name):
+        return cls.append_path(Constants.BASE_URL, cls.routes[page_name])
+
+
