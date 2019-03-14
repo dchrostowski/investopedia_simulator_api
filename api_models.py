@@ -267,7 +267,7 @@ sendConfirmationEmailCheckBox	on
 
 class TransactionType(object):
     def __init__(self,ttype):
-        ttype = ttype.upper()
+        self.ttype = ttype.upper()
         type_val = None
 
         if ttype in Constants.STOCK_TRADE_TRANSACTION_TYPES:
@@ -289,6 +289,10 @@ class TransactionType(object):
 
     def __repr__(self):
         return json.dumps(self.form_data)
+
+    def __str__(self):
+        return self.ttype
+
 
     
     @classmethod
@@ -318,7 +322,7 @@ class TransactionType(object):
 
 class OrderType(object):
     def __init__(self,order_type,price=None, pct=None):
-        order_type = titlecase(order_type)
+        self.order_type = titlecase(order_type)
 
         self.form_data = {
             'Price': order_type,
@@ -328,8 +332,8 @@ class OrderType(object):
             'tStopVALTextBox':None 
         }
 
-        if re.search(r'trailingstop', order_type.lower()):
-            order_type = 'TrailingStop'
+        if re.search(r'trailingstop', self.order_type.lower()):
+            self.order_type = 'TrailingStop'
 
         try:
             self.form_data.update(Constants.ORDER_TYPES[order_type](price,pct))
@@ -341,6 +345,9 @@ class OrderType(object):
 
     def __repr__(self):
         return json.dumps(self.form_data)
+
+    def __str__(self):
+        return self.order_type
 
     @classmethod
     def MARKET(cls):
@@ -379,6 +386,9 @@ class OrderDuration(object):
 
     def __repr__(self):
         return json.dumps(self.form_data)
+
+    def __str__(self):
+        return self.duration
 
     @classmethod
     def DAY_ORDER(cls):
@@ -439,10 +449,14 @@ class StockTrade(object):
         except AssertionError:
             err = "Invalid trade.  Ensure all paramaters are properly typed."
             raise InvalidTradeException(err)
-        
+        # DONT MODIFY THESE, IT WILL CAUSE AN UNEXPECTED TRADE
         self._form_token = None
-        self.symbol = stock.symbol
-        self.quantity = quantity
+        self._symbol = stock.symbol
+        self._quantity = quantity
+        self._transaction_type = str(transaction_type)
+        self._order_type = str(order_type)
+        self._order_duration = str(order_duration)
+        self._sendEmail = sendEmail
 
 
         if sendEmail:
@@ -451,9 +465,9 @@ class StockTrade(object):
             sendEmail=0
 
         self.form_data = {
-            'symbolTextbox': self.symbol,
+            'symbolTextbox': self._symbol,
             'selectedValue': None,
-            'quantityTextbox': self.quantity,
+            'quantityTextbox': self._quantity,
             'isShowMax': 0,
             'sendConfirmationEmailCheckBox':sendEmail
         }
@@ -461,6 +475,26 @@ class StockTrade(object):
         self.form_data.update(transaction_type.form_data)
         self.form_data.update(order_type.form_data)
         self.form_data.update(order_duration.form_data)
+
+    @property
+    def symbol(self):
+        return self._symbol
+
+    @property
+    def quantity(self):
+        return self._quantity
+
+    @property 
+    def transaction_type(self):
+        return self._transaction_type
+
+    @property
+    def order_duration(self):
+        return self._order_duration
+
+    @property
+    def order_type(self):
+        return self._order_type
 
     @property
     def form_token(self):
