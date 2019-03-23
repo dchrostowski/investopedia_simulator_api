@@ -61,15 +61,14 @@ class InvestopediaSimulatorAPI(object):
 
         trade.form_token = form_token
 
-        if 'BUY' in trade.transaction_type:
-            resp = self.session.post(url, data=trade.show_max())
-            shares_match = re.search(
-                r'^A\s*maximum\s*of\s*(\d+)\s*shares', resp.text)
-            if shares_match:
-                max_shares = int(shares_match.group(1))
-                if trade.quantity > max_shares:
-                    raise Exception(
-                        "Quantity of trade exceeds maximum of %s" % max_shares)
+        
+        resp = self.session.post(url, data=trade.show_max())
+        shares_match = re.search(
+            r'^A\s*maximum\s*of\s*(\d+)\s*shares', resp.text)
+        if shares_match:
+            max_shares = int(shares_match.group(1))
+            if trade.quantity > max_shares:
+                raise TradeExceedsMaxSharesException("Quantity of trade exceeds maximum of %s" % max_shares,max_shares)
 
         resp = self.session.post(url, data=trade.prepare())
         if resp.history:
