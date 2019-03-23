@@ -72,7 +72,6 @@ class InvestopediaSimulatorAPI(object):
                         "Quantity of trade exceeds maximum of %s" % max_shares)
 
         resp = self.session.post(url, data=trade.prepare())
-        embed()
         if resp.history:
             redirect_url = resp.history[0].headers['Location']
             redirect_qp = UrlHelper.get_query_params(redirect_url)
@@ -105,7 +104,6 @@ class InvestopediaSimulatorAPI(object):
             change_url = matches.group(1)
         submit_query_params = UrlHelper.get_query_params(change_url)
         submit_query_params.update({'urlToken': url_token})
-        embed()
         submit_form = tree.xpath(
             '//div[@class="group"]/form[@name="simTradePreview"]')[0]
         submit_token = submit_form.xpath('input[@name="formToken"]/@value')[0]
