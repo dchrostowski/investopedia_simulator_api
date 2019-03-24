@@ -4,11 +4,19 @@ from IPython import embed
 from investopedia_api import InvestopediaSimulatorAPI
 from api_models import *
 
-# cookie should look like {"here I'm just using a json object with multiple cookies defined"}
 with open('auth_cookie.json') as ifh:
     cookies = json.load(ifh)
 
-# Instantiate as you see fit, doesn't need to be a keywork arg
+"""
+I have multiple accounts so I parse the json to a dict which looks like this:
+{
+    "default": '1234cookievalabcdabcd1234',
+    'account1': '6754cookievaldefgdefg1234',
+    ...
+}
+
+"""
+# Instantiate as you see fit, just needs a string of the cookie value.
 client = InvestopediaSimulatorAPI(cookies['default'])
 portfolio = client.stock_portfolio
 
@@ -71,7 +79,7 @@ print("expiration for first put option in chain: %s" % put_option1.expiration)
 print("strike price for second put option in chain: %s" % put_option2.strike_price)
 print("expiration for second put option in chain: %s" % put_option2.expiration)
 
-
+trades = []
 for pick in picks:
     stocks = portfolio.find_by_symbol(pick)
     if len(stocks) > 0:
@@ -83,15 +91,71 @@ for pick in picks:
             trade = StockTrade(
                 stock=quote,
                 quantity=qty_shares_to_buy,
-                transaction_type=TransactionType.STOCK_BUY(), 
+                transaction_type=TransactionType.BUY(),
                 order_type=OrderType.MARKET(),
                 order_duration=OrderDuration.GOOD_TILL_CANCELLED(),
                 sendEmail=True
             )
 
-            prepped_trade = client.prepare_trade(trade)
-            print(prepped_trade)
-            # uncomment to execute the trade
-            #prepped_trade.execute()
+            trades.append(trade)
+        
         else:
             print("Couldn't find %s" % pick)
+
+# Trade can also take strings ()
+trade2 = StockTrade(
+    stock='GRMN',
+    quantity=10,
+    transaction_type='buy',
+    order_type = 'market',
+    order_duration = 'good_till_cancelled',
+    sendEmail=True
+)
+
+# This is to inteintionally trigger a TradeExceedsMaxSharesException which gets handled below
+trade3 = StockTrade(
+    stock='CYBR',
+    quantity=9999999999999999999,
+    transaction_type='buy',
+    order_type = 'market',
+    order_duration = 'good_till_cancelled',
+    sendEmail=True
+)
+
+# Can change the trade like so:
+
+trade2.transaction_type = 'sell_short'
+# alternatively can do this:
+# trade2.transaction_type = TransactionType.SELL_SHORT()
+
+# modifying the order type with a string is not supported because order types can get complicated
+trade2.order_type = OrderType.LIMIT(10.61)
+
+trade2.order_duration = 'day_order'
+# can also do this:
+# trade2.order_duration = OrderDuration.DAY_ORDER()
+
+trades.append(trade2)
+trades.append(trade3)
+prepped_trades = []
+
+for trade in trades:
+    print("------------------------------\npreparing:")
+    print(trade)
+    try:
+        prepped_trades.append(client.prepare_trade(trade))
+    except TradeExceedsMaxSharesException as max_shares_error:
+        max_shares = max_shares_error.max_shares
+        print("\nCould not buy %s shares of %s because it exceeds the max amount of %s" % (trade.quantity, trade.symbol, max_shares))
+        if max_shares > 0:
+            print("Adjusting trade for %s.  Setting quantity to %s." % (trade.symbol, max_shares))
+            trade.quantity = max_shares_error.max_shares
+            trades.append(trade)
+
+print("\n\n--------------------------\nValidated trades:\n")        
+for prepped_trade in prepped_trades:
+    print("---------------------------")
+    print(prepped_trade)
+
+    # uncomment to execute the trade
+    # prepped_trade.execute()

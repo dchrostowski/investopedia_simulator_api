@@ -14,6 +14,7 @@ pkg-resources==0.0.0
 prompt-toolkit==2.0.8
 ptyprocess==0.6.0
 Pygments==2.3.1
+ratelimit==2.2.1
 requests==2.21.0
 six==1.12.0
 titlecase==0.12.0

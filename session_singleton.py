@@ -5,10 +5,11 @@ from singleton_decorator import singleton
 import requests
 from IPython import embed
 from lxml import html
+import warnings
 
 
-class Session2:
-    class __Session2(requests.Session):
+class Session:
+    class __Session(requests.Session):
         def __init__(self,*args,**kwargs):
             super().__int__(*args,**kwargs)
 
@@ -16,13 +17,12 @@ class Session2:
             self = None
 
     __session = None
-    __auth_cookie = None
 
 
     def __new__(cls):
-        if cls.__session is None:
-            raise InvestopediaAuthException("Not logged in, call login() first with auth cookie")
-            return
+        if not cls.is_logged_in():
+            raise NotLoggedInException("Not logged in, call login() first with auth cookie")
+        
         return cls.__session
 
     def __getattr__(self,name):
@@ -31,15 +31,22 @@ class Session2:
     def __setattr__(self,name):
         return setattr(self.__session,name)
 
+    @classmethod
+    def is_logged_in(cls):
+        if cls.__session is not None and cls.__session.cookies.get('UI4') is not None:
+            return True
+        
+        return False
+
     
 
     @classmethod
     def login(cls,auth_cookie_value):
-        if cls.__session is not None:
-            raise InvestopediaAuthException("Already logged in.  Logout first before attempting to login again")
+        if cls.__session is not None and auth_cookie_value == cls.__auth_cookie:
+            warnings.warn("authenticated session already exists, returning session")
+            return cls.__session
         
         url = UrlHelper.route('portfolio')
-        
 
         auth_cookie = {
             "version":0,
@@ -47,7 +54,7 @@ class Session2:
             "value":auth_cookie_value,
             "port":None,
             # "port_specified":False,
-            "domain":'www.investopedia.com',
+            "domain":'.investopedia.com',
             # "domain_specified":False,
             # "domain_initial_dot":False,
             "path":'/',
@@ -63,21 +70,18 @@ class Session2:
 
         cls.__session = requests.Session()
         cls.__session.cookies.set(**auth_cookie)
-        print("about to do url=urlheler.route('home')")
+
         
         url = UrlHelper.route('home')
         resp = cls.__session.get(url)
-        if resp.status_code != 200:
-            __session = None
-            __auth_cookie = None
+
+        if not resp.ok:
+            cls.__session = None
             raise InvestopediaAuthException("Got status code %s when fetching %s" % (resp.status_code,url))
 
         tree = html.fromstring(resp.text)
         sign_out_link = tree.xpath('//div[@class="left-nav"]//ul/li/a[text()="Sign Out"]')
         if len(sign_out_link) < 1:
-            raise InvestopediaAuthException("Could not authenticate with cookie")
-
-        #awards_url = tree.xpath('//div[@class="sim-page"]//div[contains(@class,"box") and contains(@class,"info")]/div[contains(@class,"box")]/div[@class="title"]/h2/a[text()="Your Awards"]/@href')[0]
-        #awards_qs = UrlHelper.get_query_params(awards_url)
-        #user_id = awards_qs['userId']
+            warnings.warn("Could not sign out link on home page.  Session may not have authenticated.")
+        
         return cls.__session
