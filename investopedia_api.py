@@ -54,8 +54,9 @@ class InvestopediaSimulatorAPI(object):
     
 
     def get_quote(self, symbol):
+        session = Session()
         url = self.route('lookup')
-        resp = self.session.post(url, data={'symbol': symbol})
+        resp = session.post(url, data={'symbol': symbol})
         if resp.status_code == 200 and int(resp.headers['content-length']) > 0:
             tree = html.fromstring(resp.text)
             xpath_map = {
@@ -88,17 +89,15 @@ class InvestopediaSimulatorAPI(object):
         return self._option_portfolio
 
     def _get_option_portfolio(self):
-        resp = self.session.get(self.route('portfolio'))
+        session = Session()
+        resp = session.get(self.route('portfolio'))
         tree = html.fromstring(resp.content.decode())
 
         pending_rows = tree.xpath('//table[@id="option-portfolio-table"]//tr[contains(@style,"italic")]')
         active_rows = tree.xpath('//table[@id="option-portfolio-table"]/tbody/tr[not(contains(@class,"expandable")) and not(contains(@style,"italic"))]')
 
-
         active_contracts = self._get_active_option_portfolio(active_rows)
         pending_contracts = self._get_pending_option_portfolio(tree)
-
-        embed()
 
         all_contracts = active_contracts + pending_contracts
         #self._option_portfolio = StockPortfolio(**portfolio_metadata, positions=all_positions)
@@ -147,17 +146,16 @@ class InvestopediaSimulatorAPI(object):
         return positions
 
     def _get_pending_stock_portfolio(self, portfolio_tree):
-        open_trades_resp = self.session.get(self.route('opentrades'))
+        session = Session()
+        open_trades_resp = session.get(self.route('opentrades'))
         ot_tree = html.fromstring(open_trades_resp.text)
 
         rows = ot_tree.xpath(
             '//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
-        # //table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]
 
         pending_positions = []
 
         for tr in rows:
-
             buy_or_sell = re.search(
                 r'(Buy|Sell)', tr.xpath('td[4]/text()')[0]).group(1)
             symbol = tr.xpath('td[5]/a/text()')[0]
@@ -197,8 +195,8 @@ class InvestopediaSimulatorAPI(object):
         return pending_positions
 
     def _get_stock_portfolio(self):
-
-        resp = self.session.get(self.route('portfolio'))
+        session = Session()
+        resp = session.get(self.route('portfolio'))
         tree = html.fromstring(resp.content.decode())
 
         xpath_prefix = '//div[@id="infobar-container"]/div[@class="infobar-title"]/p'
@@ -237,7 +235,8 @@ class InvestopediaSimulatorAPI(object):
 
     def _get_games(self):
         games = []
-        resp = self.session.get(self.route('games'))
+        session = Session()
+        resp = session.get(UrlHelper.route('games'))
         tree = html.fromstring(resp.content.decode())
         rows = tree.xpath(
             '//table[contains(@class,"table1")]//tr[position()>1]')
@@ -251,23 +250,23 @@ class InvestopediaSimulatorAPI(object):
 
             games.append(game)
 
-        self._games = GameList(*games, session=self.session, active_id=active)
-
+        self._games = GameList(*games, active_id=active)
+    
+    
+    """
     def _get_option_trade_form_token(self):
         resp = self.session.get(self.route('tradeoption'))
         tree = html.fromstring(resp.text)
         token = tree.xpath(
             '//div[@class="group"]//form[@id="orderForm"]/input[@name="formToken"]/@value')[0]
         return
-
-    def trade_stock(self, trade_object):
-        pass
-        #form_data = trade_object.prepare()
+    """
 
     def option_lookup(self, symbol):
+        session = Session()
 
         if self.option_token is None or self.option_user_id is None:
-            resp = self.session.get(self.route('tradeoption'))
+            resp = session.get(self.route('tradeoption'))
             tree = html.fromstring(resp.text)
 
             token = None

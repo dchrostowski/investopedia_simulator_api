@@ -37,23 +37,12 @@ print("quote change (per share): %s " % q.change)
 print("quote change (%%): %s " % q.change_percent)
 print(q)
 
-"""
-q2 = client.get_quote('AMZN')
-print(q2)
-
 p = client.stock_portfolio
 print("portfolio annual %% return: %s" % p.annual_return_pct)
 print("cash: %s" % p.cash)
 print("buying power: %s" % p.buying_power)
-"""
 
 picks = ['GOOG','AAPL','AMZN']
-
-
-print("START TRADE STUFF")
-print("----------------------")
-quote = client.get_quote('FCAP')
-print(quote)
 
 # How to do an option chain lookup
 option_lookup_symbol = 'TEO'
