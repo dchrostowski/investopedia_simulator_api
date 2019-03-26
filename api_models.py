@@ -20,10 +20,16 @@ class Game(object):
         return "\n---------------------\nGame: %s\nid: %s\nurl: %s" % (self.name, self.game_id, self.url)
 
 class GameList(list):
-    def __init__(self,*games,active_id=None):
+    def __init__(self,*games,session,active_id=None):
         self.active_id = active_id
+        self.session=session
         self.games = {}
         for game in games:
+            if type(game) != Game:
+                raise InvalidGameException("Object is not a game")
+            if game.game_id in self.games:
+                raise DuplicateGameException("Duplicate game '%s' (id=%s)" % (game.name,game.game_id))
+            
             self.games.update({game.game_id: game})
             self.append(game)
 
@@ -36,6 +42,13 @@ class GameList(list):
         rpr =  ",\n".join([game.__repr__() for game in list(self)])
         return "[\n%s\n]" % rpr
 
+    def route(self,page_name):
+        return UrlHelper.append_path(Constants.BASE_URL,self.routes[page_name])
+
+    @property
+    def routes(self):
+        return Constants.PATHS
+
     @property
     def active(self):
         if self.active_id is None:
@@ -45,22 +58,21 @@ class GameList(list):
     @active.setter
     def active(self,game_or_gid):
         active_id = None
-        if type(game_or_gid) == str:
-            active_id = str(game_or_gid)
-        else:
+        if type(game_or_gid) == Game:
             active_id = str(game_or_gid.game_id)
-
+        else:
+            active_id = str(game_or_gid)
         if active_id not in self.games:
             raise InvalidActiveGameException("Invalid active game id on set")
+        query_params = {'SDGID':active_id}
         
-        url = UrlHelper.route('games')
+        url = self.route('games')
         url = UrlHelper.set_query(url,{'SDGID':active_id})
-        session = Session()
-        resp = session.get(url)
-        if resp.ok:
+        resp = self.session.get(url)
+        if resp.status_code == 200:
             self.active_id = active_id
         else:
-            raise SetActiveGameException("Error occurred while setting active game.")
+            raise SetActiveGameException("Server returned back error: %s" % resp.status_code)
 
 class Security(object):
     def __init__(self,symbol,name,security_type):
@@ -93,30 +105,54 @@ class Stock(Security):
         return "%s" % self.symbol
 
 class Position(object):
-    def __init__(self,security,quantity,current):
-        #start=None, today_change=None, is_active=True):
+    def __init__(self,security,quantity,current=None,start=None, today_change=None, is_active=True):
         if not issubclass(type(security),Security):
             raise InvalidPositionException("Must be a security (option or stock)")
         self.security = security
-        self.quantity = int(quantity)
-        self.current = Util.sanitize_number(current)
-        self.total_value = self.current * self.quantity
+        quantity = int(quantity)
+        total_value = None
+        today_change_percent = None
+
+        if current is not None:
+            current = Util.sanitize_number(current)
+            total_value = float(current * quantity)
+
+        if start is None or today_change is None or current is None:
+            is_active = False
+
+        if is_active:
+            start = Util.sanitize_number(start)
+            change_match = re.search(r'^\$([\d\.]+)\(([\d\.]+)\s?\%\)\s*?$',today_change)
+            if change_match:
+                today_change = float(change_match.group(1))
+                today_change_percent = float(change_match.group(2))
+        
+        self.is_active = is_active
+        self.start = start
+        self.today_change = today_change
+        self.today_change_percent = today_change_percent
+        self.current = current
+        self.quantity = quantity
+        self.total_value = total_value
+            
+        if self.security.security_type == Option:
+            self.total_value = self.total_value * 100
             
 
 class StockPosition(Position):
     def __init__(self,stock,quantity,current=None,start=None, today_change=None,is_active=False):
         if type(stock) != Stock:
             raise InvalidPositionException("StockPositions must hold stocks.  Got %s instead" % type(stock))
-        super().__init__(stock,quantity,current)
-        self.is_acti
-        ,start,today_change,is_active)
+        super().__init__(stock,quantity,current,start,today_change,is_active)
         self.symbol = stock.symbol
+
        
     @property
     def net_return(self):
         if not self.is_active:
             return 0
-        net = (self.current - self.start) * self.quantity
+        net = self.current - self.start
+        net *= self.quantity
         return round(net,2)
 
     def __repr__(self):
@@ -175,34 +211,27 @@ class StockPortfolio(Portfolio):
         super().__init__(account_value,buying_power,cash,annual_return_pct)
         self.net_return = 0
         self.total_value = 0
-        self.pending = []
-        self.total_value_pending = 0
+        self.pending_total_value = 0
+        for h in positions:
+            if h.is_active:
+                self.net_return += h.net_return
+                self.total_value += h.total_value
+            elif not h.is_active:
+                if h.current is not None:
+                    self.pending_total_value += h.total_value
+            self.append(h)
+            self.security_set.add(h.security.symbol)
 
-        for p in positions:
-            if p.is_active:
-                self.net_return += p.net_return
-                self.total_value += p.total_value
-                self.append(p)
-            else:
-                if p.current is not None
-                self.pending.append(p)
-                self.total_value_pending += 
-
-    def find(self,symbol,pending=False):
+    def find_by_symbol(self,symbol,return_pending=True):
         symbol = symbol.upper()
-        position_list = list(self)
-        if pending:
-            position_list = self.pending
-
-        for position in position_list:
+        if symbol not in self.security_set:
+            return []
+        positions_to_return = []
+        for position in list(self):
             if position.security.symbol.upper() == symbol.upper():
-                return position
+                positions_to_return.append(position)
 
-        return None
-
-    @property
-    def total_value_pending(self):
-
+        return positions_to_return
 
     def total_positions(self,include_pending=True):
         if include_pending:
@@ -258,6 +287,11 @@ class OptionChain(list):
     @classmethod
     def parse(cls,html):
         pass
+
+class Derp(object):
+    def __init__(self):
+        print("derp started, see if can get session and navigate to portfolio")
+        self.session = Session2()
 
 class OptionContract(object):
     def __init__(self,option_dict=None,contract_name=None):
