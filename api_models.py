@@ -20,9 +20,8 @@ class Game(object):
         return "\n---------------------\nGame: %s\nid: %s\nurl: %s" % (self.name, self.game_id, self.url)
 
 class GameList(list):
-    def __init__(self,*games,session,active_id=None):
+    def __init__(self,*games,active_id=None):
         self.active_id = active_id
-        self.session=session
         self.games = {}
         for game in games:
             if type(game) != Game:
@@ -68,7 +67,9 @@ class GameList(list):
         
         url = self.route('games')
         url = UrlHelper.set_query(url,{'SDGID':active_id})
-        resp = self.session.get(url)
+
+        session = Session()
+        resp = session.get(url)
         if resp.status_code == 200:
             self.active_id = active_id
         else:
@@ -287,11 +288,6 @@ class OptionChain(list):
     @classmethod
     def parse(cls,html):
         pass
-
-class Derp(object):
-    def __init__(self):
-        print("derp started, see if can get session and navigate to portfolio")
-        self.session = Session2()
 
 class OptionContract(object):
     def __init__(self,option_dict=None,contract_name=None):

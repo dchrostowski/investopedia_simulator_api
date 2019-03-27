@@ -15,7 +15,7 @@ class TransactionType(object):
         'BUY_TO_COVER': 4,
     }
 
-    def __init__(self,transaction_type):
+    def __init__(self, transaction_type):
         self._transaction_type = None
         self.form_data = None
         self.transaction_type = transaction_type
@@ -23,9 +23,9 @@ class TransactionType(object):
     @property
     def transaction_type(self):
         return self._transaction_type
-    
+
     @transaction_type.setter
-    def transaction_type(self,ttype):
+    def transaction_type(self, ttype):
         self.form_data = None
         ttype = ttype.upper()
         try:
@@ -47,15 +47,15 @@ class TransactionType(object):
     @classmethod
     def BUY(cls):
         return cls('BUY')
-    
+
     @classmethod
     def SELL(cls):
         return cls('SELL')
-    
+
     @classmethod
     def SELL_SHORT(cls):
         return cls('SELL_SHORT')
-    
+
     @classmethod
     def BUY_TO_COVER(cls):
         return cls('BUY_TO_COVER')
@@ -64,19 +64,18 @@ class TransactionType(object):
 class OrderType(object):
 
     ORDER_TYPES = {
-        'Market': lambda val1,val2: {},
-        'Limit': lambda val1,val2: {'limitPriceTextBox': val1},
-        'Stop': lambda val1,val2: {'stopPriceTextBox': val1},
-        'TrailingStop': lambda pct=None, dlr=None: 
+        'Market': lambda val1, val2: {},
+        'Limit': lambda val1, val2: {'limitPriceTextBox': val1},
+        'Stop': lambda val1, val2: {'stopPriceTextBox': val1},
+        'TrailingStop': lambda pct=None, dlr=None:
             {
-                'tStopPRCTextBox':pct,
-                'tStopVALTextBox':dlr 
-            }
+                'tStopPRCTextBox': pct,
+                'tStopVALTextBox': dlr
+        }
     }
 
-    def __init__(self,order_type,price=None, pct=None):
+    def __init__(self, order_type, price=None, pct=None):
         self._order_type = None
-
 
         if re.search(r'trailingstop', order_type.lower()):
             order_type = 'TrailingStop'
@@ -86,12 +85,13 @@ class OrderType(object):
             'Price': order_type,
             'limitPriceTextBox': None,
             'stopPriceTextBox': None,
-            'tStopPRCTextBox':None,
-            'tStopVALTextBox':None 
+            'tStopPRCTextBox': None,
+            'tStopVALTextBox': None
         }
 
         try:
-            self.form_data.update(self.__class__.ORDER_TYPES[order_type](price,pct))
+            self.form_data.update(
+                self.__class__.ORDER_TYPES[order_type](price, pct))
             self._order_type = order_type
             self._price = price
             self._pct = pct
@@ -113,7 +113,7 @@ class OrderType(object):
         elif self._price:
             pod = '$%s' % self._price
 
-        return "%s %s" % (self.order_type,pod)
+        return "%s %s" % (self.order_type, pod)
 
     def __str__(self):
         return self.__repr__()
@@ -121,41 +121,45 @@ class OrderType(object):
     @classmethod
     def MARKET(cls):
         return cls('Market')
-    
-    @classmethod
-    def LIMIT(cls,price):
-        return cls('Limit',price)
-    
-    @classmethod
-    def STOP(cls,price):
-        return cls('Stop',price)
 
     @classmethod
-    def TRAILING_STOP(cls,price=None,pct=None):
+    def LIMIT(cls, price):
+        return cls('Limit', price)
+
+    @classmethod
+    def STOP(cls, price):
+        return cls('Stop', price)
+
+    @classmethod
+    def TRAILING_STOP(cls, price=None, pct=None):
         if price and pct:
-            raise InvalidOrderTypeException("Must only pick either percent or dollar amount for trailing stop.")
+            raise InvalidOrderTypeException(
+                "Must only pick either percent or dollar amount for trailing stop.")
         if price is None and pct is None:
-            raise InvalidOrderTypeException("Must enter either a percent or dollar amount for traling stop.")
-        return cls('TrailingStop',price,pct)
+            raise InvalidOrderTypeException(
+                "Must enter either a percent or dollar amount for traling stop.")
+        return cls('TrailingStop', price, pct)
+
 
 class OrderDuration(object):
     ORDER_DURATIONS = {
         'DAY_ORDER': 1,
-        'GOOD_TILL_CANCELLED' : 2,
+        'GOOD_TILL_CANCELLED': 2,
     }
-    def __init__(self,duration):
+
+    def __init__(self, duration):
         self._order_duration = None
         self.form_data = None
         self.order_duration = duration
 
         duration = duration.upper()
-    
+
     @property
     def order_duration(self):
         return self._order_duration
-    
+
     @order_duration.setter
-    def order_duration(self,duration):
+    def order_duration(self, duration):
         try:
             duration = duration.upper()
             form_arg = self.__class__.ORDER_DURATIONS[duration]
@@ -166,7 +170,6 @@ class OrderDuration(object):
             err += "  Valid order durations are:\n\t"
             err += ", ".join(Constants.ORDER_DURATIONS.keys()) + "\n"
             raise InvalidOrderDurationException(err)
-        
 
     def __repr__(self):
         return self._order_duration
@@ -182,25 +185,27 @@ class OrderDuration(object):
     def GOOD_TILL_CANCELLED(cls):
         return cls('GOOD_TILL_CANCELLED')
 
+
 class StockTrade(object):
     def __init__(
-        self,
-        stock,
-        quantity,
-        transaction_type,
-        order_type=OrderType.MARKET(),
-        order_duration=OrderDuration.GOOD_TILL_CANCELLED(),
-        sendEmail=True):
+            self,
+            stock,
+            quantity,
+            transaction_type,
+            order_type=OrderType.MARKET(),
+            order_duration=OrderDuration.GOOD_TILL_CANCELLED(),
+            sendEmail=True):
 
         if type(transaction_type) == str:
             transaction_type = TransactionType(transaction_type)
 
         if type(order_type) == str:
             if order_type.lower() != 'market':
-                raise InvalidTradeException("Can only pass order_type as string for simple market orders.  For stop/limit orders pass something like OrderType.LIMIT(10.00) Or OrderType.STOP(20.00)")
+                raise InvalidTradeException(
+                    "Can only pass order_type as string for simple market orders.  For stop/limit orders pass something like OrderType.LIMIT(10.00) Or OrderType.STOP(20.00)")
             else:
                 order_type = OrderType(order_type)
-            
+
         if type(order_duration) == str:
             order_duration = OrderDuration(order_duration)
 
@@ -211,14 +216,13 @@ class StockTrade(object):
         except AssertionError:
             err = "Invalid trade.  Ensure all paramaters are properly typed."
             raise InvalidTradeException(err)
-        
+
         symbol = None
         if type(stock) == str:
             symbol = stock
         else:
             symbol = stock.symbol
 
-        
         self._form_token = None
         self._symbol = symbol
         self._quantity = quantity
@@ -227,18 +231,17 @@ class StockTrade(object):
         self._order_duration = order_duration
         self._sendEmail = sendEmail
 
-
         if sendEmail:
-            sendEmail=1
+            sendEmail = 1
         else:
-            sendEmail=0
+            sendEmail = 0
 
         self.form_data = {
             'symbolTextbox': self._symbol,
             'selectedValue': None,
             'quantityTextbox': self._quantity,
             'isShowMax': 0,
-            'sendConfirmationEmailCheckBox':sendEmail
+            'sendConfirmationEmailCheckBox': sendEmail
         }
 
         self.form_data.update(transaction_type.form_data)
@@ -250,25 +253,25 @@ class StockTrade(object):
         return self._symbol
 
     @symbol.setter
-    def symbol(self,symbol):
+    def symbol(self, symbol):
         self.form_data['symbolTextbox'] = symbol
         self._symbol = symbol
 
     @property
     def quantity(self):
         return self._quantity
-    
+
     @quantity.setter
-    def quantity(self,q):
+    def quantity(self, q):
         self.form_data['quantityTextbox'] = q
         self._quantity = q
 
-    @property 
+    @property
     def transaction_type(self):
         return str(self._transaction_type)
 
     @transaction_type.setter
-    def transaction_type(self,ttype):
+    def transaction_type(self, ttype):
         if type(ttype) == str:
             ttype = TransactionType(ttype)
 
@@ -276,29 +279,31 @@ class StockTrade(object):
             self.form_data.update(ttype.form_data)
             self._transaction_type = ttype
         else:
-            raise InvalidTradeException("transaction_type must be either str or TransactionType")
+            raise InvalidTradeException(
+                "transaction_type must be either str or TransactionType")
 
     @property
     def order_duration(self):
         return str(self._order_duration)
-    
+
     @order_duration.setter
-    def order_duration(self,od):
+    def order_duration(self, od):
         if type(od) == str:
             od = OrderDuration(od)
-        
+
         if type(od) == OrderDuration:
             self.form_data.update(od.form_data)
             self._order_duration = od
         else:
-            raise InvalidTradeException("order_duration must be either str or OrderDuraton")
+            raise InvalidTradeException(
+                "order_duration must be either str or OrderDuraton")
 
     @property
     def order_type(self):
         return str(self._order_type)
 
     @order_type.setter
-    def order_type(self,ot):
+    def order_type(self, ot):
         if type(ot) == OrderType:
             self.form_data.update(ot.form_data)
             self._order_type = ot
@@ -313,7 +318,7 @@ class StockTrade(object):
         return self._form_token
 
     @form_token.setter
-    def form_token(self,token):
+    def form_token(self, token):
         self.form_data.update({'formToken': token})
         self._form_token = token
 
@@ -334,16 +339,18 @@ class StockTrade(object):
 
     def _check_max_shares(self):
         session = Session()
-        resp = session.post(UrlHelper.route('tradestock'),data=self.show_max())
+        resp = session.post(UrlHelper.route(
+            'tradestock'), data=self.show_max())
         shares_match = re.search(
             r'^A\s*maximum\s*of\s*(\d+)\s*shares', resp.text)
         if shares_match:
             max_shares = int(shares_match.group(1))
             if self.quantity > max_shares:
-                raise TradeExceedsMaxSharesException("Quantity of trade exceeds maximum of %s" % max_shares,max_shares)
-    
-    def _get_trade_info(self,tree):
-        
+                raise TradeExceedsMaxSharesException(
+                    "Quantity of trade exceeds maximum of %s" % max_shares, max_shares)
+
+    def _get_trade_info(self, tree):
+
         trade_info_tables = tree.xpath(
             '//div[@class="box-table"]/table[contains(@class,"table1")]')
         tt1 = trade_info_tables[0]
@@ -362,19 +369,18 @@ class StockTrade(object):
 
         return trade_info
 
-
-    def prepare(self):
+    def validate(self):
         session = Session()
         self.form_token = self._get_form_token()
         self._check_max_shares()
-        resp = session.post(UrlHelper.route('tradestock'),data=self.form_data)
-        
+        resp = session.post(UrlHelper.route('tradestock'), data=self.form_data)
+
         url_token = None
         if resp.history:
             redirect_url = resp.history[0].headers['Location']
             redirect_qp = UrlHelper.get_query_params(redirect_url)
             url_token = redirect_qp['urlToken']
-        
+
         tree = html.fromstring(resp.text)
         trade_info = self._get_trade_info(tree)
 
@@ -399,10 +405,9 @@ class StockTrade(object):
 
         submit_url = UrlHelper.set_query(UrlHelper.route(
             'tradestock_submit'), submit_query_params)
-        
+
         return PreparedTrade(submit_url, submit_data, **trade_info)
 
-    
     def __repr__(self):
         return str({
             'symbol': self.symbol,
@@ -415,13 +420,14 @@ class StockTrade(object):
     def __str__(self):
         return "%s" % self.__repr__()
 
+
 class PreparedTrade(dict):
-    def __init__(self,url,form_data, **kwargs):
+    def __init__(self, url, form_data, **kwargs):
         self.url = url
         self.form_data = form_data
         self.update(kwargs)
 
     def execute(self):
         session = Session()
-        resp = session.post(self.url,data=self.form_data)
+        resp = session.post(self.url, data=self.form_data)
         return resp

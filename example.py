@@ -17,14 +17,23 @@ I have multiple accounts so I parse the json to a dict which looks like this:
 
 """
 # Instantiate as you see fit, just needs a string of the cookie value.
-client = InvestopediaSimulatorAPI(cookies['default'])
-portfolio = client.stock_portfolio
+client1 = InvestopediaSimulatorAPI(cookies['aggregate'])
+client2 = InvestopediaSimulatorAPI(cookies['default'])
+
+
+portfolio1 = client1.stock_portfolio
+portfolio2 = client2.stock_portfolio
+
+print(portfolio1.cash)
+print(portfolio2.cash)
+embed()
 
 
 print("Default (active) game: %s" % client.active_game)
 print("Portfolio total value: %s" % portfolio.total_value)
 for holding in portfolio:
-    print("\nStock symbol: %s (%s)" % (holding.security.symbol, holding.security.url))
+    print("\nStock symbol: %s (%s)" %
+          (holding.security.symbol, holding.security.url))
     print("Start price: %s" % holding.start)
     print("Current price: %s" % holding.current)
     print("Net return: %s\n" % holding.net_return)
@@ -37,30 +46,19 @@ print("quote change (per share): %s " % q.change)
 print("quote change (%%): %s " % q.change_percent)
 print(q)
 
-"""
-q2 = client.get_quote('AMZN')
-print(q2)
-
 p = client.stock_portfolio
 print("portfolio annual %% return: %s" % p.annual_return_pct)
 print("cash: %s" % p.cash)
 print("buying power: %s" % p.buying_power)
-"""
 
-picks = ['GOOG','AAPL','AMZN']
-
-
-print("START TRADE STUFF")
-print("----------------------")
-quote = client.get_quote('FCAP')
-print(quote)
+picks = ['GOOG', 'AAPL', 'AMZN']
 
 # How to do an option chain lookup
 option_lookup_symbol = 'TEO'
 print("doing an option chain lookup for %s" % option_lookup_symbol)
 ocl = client.option_lookup(option_lookup_symbol)
 
- # ocl.calls and ocl.puts are simply a list of available option contracts
+# ocl.calls and ocl.puts are simply a list of available option contracts
 
 call_option1 = ocl.calls[0]
 call_option2 = ocl.calls[1]
@@ -68,15 +66,21 @@ call_option2 = ocl.calls[1]
 put_option1 = ocl.puts[0]
 put_option2 = ocl.puts[1]
 
-print("strike price for first call option in chain: %s" % call_option1.strike_price)
-print("expiration for first call option in chain: %s" % call_option1.expiration)
-print("strike price for second call option in chain: %s" % call_option2.strike_price)
-print("expiration for second call option in chain: %s" % call_option2.expiration)
+print("strike price for first call option in chain: %s" %
+      call_option1.strike_price)
+print("expiration for first call option in chain: %s" %
+      call_option1.expiration)
+print("strike price for second call option in chain: %s" %
+      call_option2.strike_price)
+print("expiration for second call option in chain: %s" %
+      call_option2.expiration)
 print("\n\n")
 
-print("strike price for first put option in chain: %s" % put_option1.strike_price)
+print("strike price for first put option in chain: %s" %
+      put_option1.strike_price)
 print("expiration for first put option in chain: %s" % put_option1.expiration)
-print("strike price for second put option in chain: %s" % put_option2.strike_price)
+print("strike price for second put option in chain: %s" %
+      put_option2.strike_price)
 print("expiration for second put option in chain: %s" % put_option2.expiration)
 
 trades = []
@@ -98,7 +102,7 @@ for pick in picks:
             )
 
             trades.append(trade)
-        
+
         else:
             print("Couldn't find %s" % pick)
 
@@ -107,8 +111,8 @@ trade2 = StockTrade(
     stock='GRMN',
     quantity=10,
     transaction_type='buy',
-    order_type = 'market',
-    order_duration = 'good_till_cancelled',
+    order_type='market',
+    order_duration='good_till_cancelled',
     sendEmail=True
 )
 
@@ -117,8 +121,8 @@ trade3 = StockTrade(
     stock='CYBR',
     quantity=9999999999999999999,
     transaction_type='buy',
-    order_type = 'market',
-    order_duration = 'good_till_cancelled',
+    order_type='market',
+    order_duration='good_till_cancelled',
     sendEmail=True
 )
 
@@ -141,21 +145,16 @@ prepped_trades = []
 
 for trade in trades:
     print("------------------------------\npreparing:")
-    print(trade)
     try:
-        prepped_trades.append(client.prepare_trade(trade))
+        validated = trade.validate()
     except TradeExceedsMaxSharesException as max_shares_error:
         max_shares = max_shares_error.max_shares
-        print("\nCould not buy %s shares of %s because it exceeds the max amount of %s" % (trade.quantity, trade.symbol, max_shares))
         if max_shares > 0:
-            print("Adjusting trade for %s.  Setting quantity to %s." % (trade.symbol, max_shares))
+            print("Adjusting trade for %s." % trade.symbol)
             trade.quantity = max_shares_error.max_shares
-            trades.append(trade)
+            validated_trade = trade.validate()
 
-print("\n\n--------------------------\nValidated trades:\n")        
-for prepped_trade in prepped_trades:
-    print("---------------------------")
-    print(prepped_trade)
-
+    print(validated)
+    validated.execute()
     # uncomment to execute the trade
-    # prepped_trade.execute()
+    # validated.execute()
