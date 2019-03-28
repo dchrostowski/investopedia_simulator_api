@@ -7,6 +7,18 @@ from IPython import embed
 from urllib import parse
 import re
 
+from functools import wraps
+
+# Allows child classes to inherit methods but prevents parent class from 
+def subclass_method(func):
+    @wraps(func)
+    def wrapper(self,*args,**kwargs):
+        method_orig_class = re.search(r'^(.+)\.' + re.escape(func.__name__) + r'$',func.__qualname__).group(1)
+        if self.__class__.__name__ == method_orig_class:
+            raise Exception("Only child classes may call this method.")
+        return func(self,*args,**kwargs)
+    return wrapper
+
 class Util(object):
     @staticmethod
     def sanitize_number(num_str):

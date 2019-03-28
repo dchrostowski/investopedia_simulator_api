@@ -8,6 +8,7 @@ from utils import Util, UrlHelper
 from constants import *
 from session_singleton import Session
 from stock_trade import *
+import itertools
 
 class Game(object):
     def __init__(self,name,url):
@@ -106,38 +107,19 @@ class Stock(Security):
         return "%s" % self.symbol
 
 class Position(object):
-    def __init__(self,security,quantity,current=None,start=None, today_change=None, is_active=True):
-        if not issubclass(type(security),Security):
-            raise InvalidPositionException("Must be a security (option or stock)")
-        self.security = security
-        quantity = int(quantity)
-        total_value = None
-        today_change_percent = None
-
-        if current is not None:
-            current = Util.sanitize_number(current)
-            total_value = float(current * quantity)
-
-        if start is None or today_change is None or current is None:
-            is_active = False
-
-        if is_active:
-            start = Util.sanitize_number(start)
-            change_match = re.search(r'^\$([\d\.]+)\(([\d\.]+)\s?\%\)\s*?$',today_change)
-            if change_match:
-                today_change = float(change_match.group(1))
-                today_change_percent = float(change_match.group(2))
-        
-        self.is_active = is_active
-        self.start = start
-        self.today_change = today_change
-        self.today_change_percent = today_change_percent
-        self.current = current
+    def __init__(self,portfolio_id,symbol,quantity,purchase_price,current_price,total_value):
+        self.portfolio_id = portfolio_id
+        self.symbol = symbol
         self.quantity = quantity
+        self.purchase_price = purchase_price
+        self.current_price = current_price
         self.total_value = total_value
-            
-        if self.security.security_type == Option:
-            self.total_value = self.total_value * 100
+    
+    @classmethod
+    def from_tr_element(cls, tr):
+        pass
+
+
             
 
 class StockPosition(Position):
@@ -205,14 +187,24 @@ class Portfolio(list):
         self.buying_power = Util.sanitize_number(buying_power)
         self.cash = Util.sanitize_number(cash)
         self.annual_return_pct = Util.sanitize_number(annual_return_pct)
-        self.security_set = set()
+
+    @classmethod 
+    def initialize(self):
+        session = Session()
+
+class StockPortfolio(list):
+    def __init__(self,long_positions):
+        for position in long_positions:
+
+            
+
 
 class StockPortfolio(Portfolio):
     def __init__(self,account_value,buying_power,cash,annual_return_pct, positions):
         super().__init__(account_value,buying_power,cash,annual_return_pct)
         self.net_return = 0
         self.total_value = 0
-        self.pending_total_value = 0
+        
         for h in positions:
             if h.is_active:
                 self.net_return += h.net_return

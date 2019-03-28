@@ -12,7 +12,7 @@ Investopedia put a recaptcha puzzle thing on their login page.  This was easily 
 **Don't fork this repo and publish your cookie for the whole world to see.  Anyone with that string can access your account.**  For your convenience I added auth_cooke.json to .gitignore.  If you plan on forking this to a publicly accessible repository then you should probably put your cookie in that untracked file and read from it.
 
 ## Environment
-Python 3.6.7.  I just use a virtualenv and install using pip from requirements.txt.  If you don't know how to do do that:
+Python 3.6.7.  I just use a virtualenv and install using pip from requirements.txt.  If you don't know how to do that:
 
 ```
 git clone https://github.com/dchrostowski/investopedia_simulator_api.git
