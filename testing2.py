@@ -1,13 +1,19 @@
-from api_models2 import *
+from api_models2 import Portfolio, StockPortfolio, Position
 from IPython import embed
+from utils import UrlHelper
+from lxml import html
+from parsers import Parsers
+from session_singleton import Session
+import json
 
+cookies = {}
+with open('auth_cookie.json') as ifh:
+    cookies = json.load(ifh)
+Session.login(cookies['default'])
+session = Session()
 
-mp = Portfolio(1,2,3,4)
-positions = [Position(5.3,6.0), Position(5.4,7.5), Position(4,6)]
-sp = StockPortfolio(positions)
+url = UrlHelper.route('portfolio')
+resp = session.get(url)
+tree = html.fromstring(resp.text)
 
-sp.total_gain()
-sp.total_value()
-
-
-embed()
+Parsers.positions(tree)
