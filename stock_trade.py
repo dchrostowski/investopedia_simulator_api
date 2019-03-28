@@ -290,7 +290,6 @@ class StockTrade(object):
     def order_duration(self, od):
         if type(od) == str:
             od = OrderDuration(od)
-
         if type(od) == OrderDuration:
             self.form_data.update(od.form_data)
             self._order_duration = od
@@ -304,11 +303,15 @@ class StockTrade(object):
 
     @order_type.setter
     def order_type(self, ot):
-        if type(ot) == OrderType:
+        if type(ot) == str and ot.lower() == 'market':
+            ot = OrderType.MARKET()
+            self.form_data.update(ot.form_data)
+            self._order_type = ot
+        elif type(ot) == OrderType:
             self.form_data.update(ot.form_data)
             self._order_type = ot
         else:
-            err = "order_type property must be OrderType.  Examples:\n"
+            err = "order_type property must be either a str of value 'market' or OrderType object.  Examples:\n"
             err += "\tOrderType.MARKET()\n"
             err += "\tOrderType.LIMIT(40.00)\n"
             raise InvalidTradeException(err)

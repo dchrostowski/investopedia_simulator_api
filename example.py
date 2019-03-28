@@ -19,21 +19,28 @@ I have multiple accounts so I parse the json to a dict which looks like this:
 # Instantiate as you see fit, just needs a string of the UI4 cookie value.
 client = InvestopediaSimulatorAPI(cookies['default'])
 
-
+print("\n\n------%s--------" % 'GET A QUOTE')
 q = client.get_quote('MSFT')
 print("quote symbol: %s" % q.symbol)
 print("quote comp name: %s" % q.name)
 print("quote market price: %s " % q.last)
 print("quote change (per share): %s " % q.change)
 print("quote change (%%): %s " % q.change_percent)
-print(q)
+print("------%s--------\n\n" % '/GET A QUOTE')
 
+
+print("\n\n------%s--------" % 'OPTION CHAIN LOOKUP')
 # How to do an option chain lookup
 option_lookup_symbol = 'TEO'
 print("doing an option chain lookup for %s" % option_lookup_symbol)
 ocl = client.option_lookup(option_lookup_symbol)
 
-# ocl.calls and ocl.puts are simply a list of available option contracts
+# list of call options in chain lookup
+ocl.calls
+
+# list of put options in chain lookup
+ocl.puts
+
 
 call_option1 = ocl.calls[0]
 call_option2 = ocl.calls[1]
@@ -41,27 +48,36 @@ call_option2 = ocl.calls[1]
 put_option1 = ocl.puts[0]
 put_option2 = ocl.puts[1]
 
-print("strike price for first call option in chain: %s" %
-      call_option1.strike_price)
-print("expiration for first call option in chain: %s" %
-      call_option1.expiration)
-print("strike price for second call option in chain: %s" %
-      call_option2.strike_price)
-print("expiration for second call option in chain: %s" %
-      call_option2.expiration)
-print("\n\n")
+print(call_option1.symbol)
+# strike price for first call option in chain:
+print(call_option1.strike_price)
+# expiration for first call option in chain:
+print(call_option1.expiration)
+# strike price for second call option in chain:
+print("\n")
+print(call_option2.symbol)
+print(call_option2.strike_price)
+# expiration for second call option in chain:
+print(call_option2.expiration)
+print("\n")
+print(put_option1.symbol)
+# strike price for first put option in chain:
+print(put_option1.strike_price)
+# expiration for first put option in chain:
+print(put_option1.expiration)
+print("\n")
+print(put_option2.symbol)
+# strike price for second put option in chain
+print(put_option2.strike_price)
+# expiration for second put option in chain:
+print(put_option2.expiration)
+print("------%s--------\n\n" % '/OPTION CHAIN LOOKUP')
 
-print("strike price for first put option in chain: %s" %
-      put_option1.strike_price)
-print("expiration for first put option in chain: %s" % put_option1.expiration)
-print("strike price for second put option in chain: %s" %
-      put_option2.strike_price)
-print("expiration for second put option in chain: %s" % put_option2.expiration)
 
+print("\n\n------%s--------" % 'STOCK TRADES')
+print('\n\nUncomment lines that call the execute() method on trade objects to see it place orders on investopedia.\n')
 
-
-
-# Trade can also take strings ()
+# Trade params can take strings
 trade1 = StockTrade(
     stock='GOOG',
     quantity=10,
@@ -70,22 +86,34 @@ trade1 = StockTrade(
     order_duration='good_till_cancelled',
     sendEmail=True
 )
+print("trade1 init:")
+print(trade1)
+print("\n")
 
-# These can also be changed prior to callling the validate() method
-trade1.quantity  = 20
-trade1.transaction_type = 'sell_short'
-trade1.order_duration = 'day_order'
-trade1.order_type = OrderType.MARKET()
-
+print("trade1 validated:")
 validated1 = trade1.validate()
 print(validated1)
-validated1.execute()
+# Trades can also be changed after validation, just don't forget to revalidate.
+trade1.quantity = 20
+trade1.transaction_type = 'sell_short'
+trade1.order_duration = 'day_order'
+trade1.order_type = 'market'
+print("trade1 after change:")
+print(trade1)
+print("\n")
+
+validated1 = trade1.validate()
+print("trade1 revalidated:")
+print(validated1)
+
+# uncomment to execute and place the order
+# validated1.execute()
 
 quote = client.get_quote('AAPL')
 qty_shares_to_buy = int(3200 / quote.last)
 # can also pass in a Quote object to more easily calculate how many shares you want to trade
 trade2 = StockTrade(
-    stock=quote, 
+    stock=quote,
     quantity=10,
     # StockTrade can also take special object instances defined in stock_trade (see stock_trade.py)
     transaction_type=TransactionType.BUY(),
@@ -95,7 +123,11 @@ trade2 = StockTrade(
 )
 
 validated2 = trade2.validate()
-validated2.execute()
+print("\ntrade2 validated:")
+print(validated2)
+
+# uncomment to execute and place the order
+# validated2.execute()
 
 # This is to inteintionally trigger a TradeExceedsMaxSharesException (because simulator rules) which can be handled during the invocation of validate()
 trade3 = StockTrade(
@@ -108,12 +140,19 @@ trade3 = StockTrade(
 )
 validated3 = None
 try:
+    print("\ntrade3 (will catch exception during validation):")
+    print(trade3)
     validated3 = trade3.validate()
 except TradeExceedsMaxSharesException as e:
     if e.max_shares > 0:
         trade3.quantity = e.max_shares
-        print("trade3 set to %s shares" % trade3.quantity)
+        print("\nhandling TradeExceedsMaxSharesException trade3.quantity set to %s shares" %
+              trade3.quantity)
         validated3 = trade3.validate()
+        print("\ntrade3 revalidated")
         print(validated3)
-        validated3.execute()
+        # uncomment to execute and place the order
+        # validated3.execute()
 
+print('\nUncomment lines that call the execute() method on PreparedTrade objects to see it place orders on investopedia.\n\n')
+print("------%s--------\n\n" % '/STOCK TRADES')
