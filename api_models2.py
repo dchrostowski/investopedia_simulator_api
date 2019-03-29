@@ -24,8 +24,8 @@ class Portfolio(list):
         self.annual_return_pct = annual_return_pct
 
         self._stock_portfolio = stock_portfolio
-        #self._shorted_portfolio = shorted_portfolio
-        #self._option_portfolio = option_portfolio
+        # self._shorted_portfolio = shorted_portfolio
+        # self._option_portfolio = option_portfolio
 
     @subclass_method
     def total_value(self):
@@ -78,8 +78,30 @@ class Position(object):
 
 
 class LongPosition(Position):
-    def __init__(self, **kwargs):
-        if kwargs.get('stock_type') == 'long':
-            parent_args = inspect.getargspec(Position).args[1:]
-            args = [kwargs[a] for a in parent_args]
-            super().__init__(*args)
+    stock_type_assertion = 'long'
+
+    def __init__(self, trade_link, stock_type, **kwargs):
+        super().__init__(**kwargs)
+        assert stock_type == self.stock_type_assertion
+        self.stock_type = stock_type
+        self.trade_link = trade_link
+
+
+class ShortPosition(Position):
+    stock_type_assertion = 'short'
+
+    def __init__(self, trade_link, stock_type, **kwargs):
+        super().__init__(**kwargs)
+        assert stock_type == self.stock_type_assertion
+        self.stock_type = stock_type
+        self.trade_link = trade_link
+
+
+class OptionPosition(Position):
+    stock_type_assertion = 'long'
+
+    def __init__(self, trade_link, stock_type, **kwargs):
+        super().__init__(**kwargs)
+        assert stock_type == self.stock_type_assertion
+        self.stock_type = stock_type
+        self.trade_link = trade_link

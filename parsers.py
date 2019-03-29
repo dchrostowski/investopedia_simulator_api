@@ -27,7 +27,7 @@ class Parsers(object):
 
         xpath_map = {
             'portfolio_id': 'td[1]/div/@data-portfolioid',
-            'stock_type': 'td[1]/div/@data-stocktype',
+            # stock_type': 'td[1]/div/@data-stocktype',
             'symbol': 'td[1]/div/@data-symbol',
             'description': 'td[4]/text()',
             'quantity': 'td[5]/text()',
@@ -39,11 +39,18 @@ class Parsers(object):
         }
         trs = tree.xpath(
             '//table[contains(@class,"table1")]/tbody/tr[not(contains(@class,"expandable")) and not(contains(@class,"no-border"))]')
+
+        longs = []
         for tr in trs:
             # <div class="detailButton btn-expand close" id="PS_LONG_0" data-symbol="TMO" data-portfolioid="5700657" data-stocktype="long"></div>
             position_data = {k: tr.xpath(v)[0] for k, v in xpath_map.items()}
-            if position_data['stock_type'] == 'long':
-                del position_data['stock_type']
-                long_pos = LongPosition(**position_data)
-                print(long_pos)
-                embed()
+
+            stock_type = tr.xpath('td[1]/div/@data-stocktype')[0]
+            trade_link = tr.xpath('td[2]/a[2]/@href')[0]
+            print(trade_link)
+
+            if stock_type == 'long':
+                long_pos = LongPosition(trade_link, **position_data)
+                longs.append(long_pos)
+
+        return longs

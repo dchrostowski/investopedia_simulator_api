@@ -16,4 +16,5 @@ url = UrlHelper.route('portfolio')
 resp = session.get(url)
 tree = html.fromstring(resp.text)
 
-Parsers.positions(tree)
+longs = Parsers.positions(tree)
+embed()
