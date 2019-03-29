@@ -6,7 +6,7 @@ import re
 import accepts
 import inspect
 
-from utils import subclass_method
+from utils import subclass_method, correct_method_params
 
 
 class Portfolio(list):
@@ -61,8 +61,20 @@ class StockPortfolio(Portfolio):
         return self.__class__
 
 
+
+
 class Position(object):
-    def __init__(self, portfolio_id, symbol, quantity, description, purchase_price, current_price, total_value, total_change):
+    @correct_method_params
+    def __init__(
+      self: object, 
+      portfolio_id: str, 
+      symbol: str, 
+      quantity: int, 
+      description:str, 
+      purchase_price: Decimal, 
+      current_price: Decimal, 
+      total_value: Decimal):
+
         self.portfolio_id = portfolio_id
         self.symbol = symbol
         self.quantity = quantity
@@ -70,7 +82,6 @@ class Position(object):
         self.purchase_price = purchase_price
         self.current_price = current_price
         self.total_value = total_value
-        self.total_change = total_change
 
     @classmethod
     def from_tr_element(cls, tr):
@@ -85,6 +96,10 @@ class LongPosition(Position):
         assert stock_type == self.stock_type_assertion
         self.stock_type = stock_type
         self.trade_link = trade_link
+
+    @correct_method_params
+    def foo(self,a,b):
+        print(a)
 
 
 class ShortPosition(Position):

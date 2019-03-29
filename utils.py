@@ -7,10 +7,30 @@ from urllib import parse
 import re
 
 from functools import wraps
+import inspect
+from decimal import Decimal
+import copy
+import warnings
+
+def conform_value(value,new_type):
+    print("converting %s to %s" % (value,new_type))
+    if new_type not in (str,Decimal,int):
+        return value
+    
+    value = re.sub('\s+',' ', str(value)).strip()
+    if new_type == str:
+        return value
+
+    if new_type == str:
+        return value
+        
+    if new_type == Decimal:
+        return Decimal(re.sub(r'[^\d\.]+','',value))
+
+    elif new_type == int:
+        return int(value)
 
 # Allows child classes to inherit methods but prevents parent class from
-
-
 def subclass_method(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -21,6 +41,20 @@ def subclass_method(func):
         return func(self, *args, **kwargs)
     return wrapper
 
+def correct_method_params(func):
+    @wraps(func)
+    def wrapper(self,*args,**kwargs):
+        copy_kwargs = copy.deepcopy(kwargs)
+        copy_kwargs.update(dict(zip(func.__code__.co_varnames[1:], args)))
+        func_annotations = inspect.getfullargspec(func).annotations
+        try:
+            new_kwargs = {k:conform_value(copy_kwargs[k], func_annotations[k]) for k in copy_kwargs}
+        except KeyError as e:
+            warnings.warn("Missing annotations for param(s).  Not correcting any param types for method %s" % func.__qualname__)
+            return func(self,*args,**kwargs)
+        return func(self,**new_kwargs)
+    return wrapper
+
 
 class Util(object):
     @staticmethod
@@ -28,6 +62,9 @@ class Util(object):
         if type(num_str) == float:
             return num_str
         return float(re.sub(r'(?:\$|\,|\s|\%)', '', num_str))
+
+        
+
 
 
 # Needed this because urllib is a bit clfunky/confusing

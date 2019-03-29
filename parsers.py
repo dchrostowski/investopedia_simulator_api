@@ -34,7 +34,6 @@ class Parsers(object):
             'purchase_price': 'td[6]/text()',
             'current_price': 'td[7]/text()',
             'total_value': 'td[8]/text()',
-            'total_change': 'td[9]/text()',
 
         }
         trs = tree.xpath(
@@ -50,7 +49,7 @@ class Parsers(object):
             print(trade_link)
 
             if stock_type == 'long':
-                long_pos = LongPosition(trade_link, **position_data)
+                long_pos = LongPosition(trade_link, stock_type, **position_data)
                 longs.append(long_pos)
 
         return longs
