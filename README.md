@@ -4,7 +4,7 @@
 A simple Python API for Investopedia's stock simulator games.  
 
 ## Features
-This is very much a work-in-progress. Very messy and unusuabe currently. I'm throwing around some designs. Trading long and short positions currently works quite nicely, but everything else needs an overhaul.
+This is very much a work-in-progress. Very messy and unusuabe currently. I'm throwing around some designs (see dev2 branch - api_models.py) . Trading long and short positions currently works quite nicely, but everything else needs an overhaul.
 
 ## Authentication
 Investopedia put a recaptcha puzzle thing on their login page.  This was easily circumvented by getting a human being to solve the captcha. After clicking on traffic lights 0-67 times, you will finally see the cookie.  Just copy the value and pass it to the InvestopediaSimulatorAPI constructor. 
