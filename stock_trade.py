@@ -275,12 +275,10 @@ class StockTrade(object):
         if type(ttype) == str:
             ttype = TransactionType(ttype)
 
-        if type(ttype) == TransactionType:
-            self.form_data.update(ttype.form_data)
-            self._transaction_type = ttype
-        else:
-            raise InvalidTradeException(
-                "transaction_type must be either str or TransactionType")
+        assert type(ttype).__name__ == 'TransactionType', "Could not validate transaction type"
+        
+        self.form_data.update(ttype.form_data)
+        self._transaction_type = ttype
 
     @property
     def order_duration(self):
@@ -290,12 +288,11 @@ class StockTrade(object):
     def order_duration(self, od):
         if type(od) == str:
             od = OrderDuration(od)
-        if type(od) == OrderDuration:
-            self.form_data.update(od.form_data)
-            self._order_duration = od
-        else:
-            raise InvalidTradeException(
-                "order_duration must be either str or OrderDuraton")
+        assert type(od).__name__ == 'OrderDuration', "Could not validate OrderDuration"
+        
+        self.form_data.update(od.form_data)
+        self._order_duration = od
+        
 
     @property
     def order_type(self):
@@ -305,16 +302,10 @@ class StockTrade(object):
     def order_type(self, ot):
         if type(ot) == str and ot.lower() == 'market':
             ot = OrderType.MARKET()
-            self.form_data.update(ot.form_data)
-            self._order_type = ot
-        elif type(ot) == OrderType:
-            self.form_data.update(ot.form_data)
-            self._order_type = ot
-        else:
-            err = "order_type property must be either a str of value 'market' or OrderType object.  Examples:\n"
-            err += "\tOrderType.MARKET()\n"
-            err += "\tOrderType.LIMIT(40.00)\n"
-            raise InvalidTradeException(err)
+        
+        assert type(ot).__name__ == 'OrderType', 'Could not validate OrderType'
+        self.form_data.update(ot.form_data)
+        self._order_type = ot
 
     @property
     def form_token(self):

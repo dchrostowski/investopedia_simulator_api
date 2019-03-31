@@ -12,8 +12,7 @@ from decimal import Decimal
 import copy
 import warnings
 
-def conform_value(value,new_type):
-    print("converting %s to %s" % (value,new_type))
+def coerce_value(value,new_type):
     if new_type not in (str,Decimal,int):
         return value
     
@@ -41,14 +40,14 @@ def subclass_method(func):
         return func(self, *args, **kwargs)
     return wrapper
 
-def correct_method_params(func):
+def coerce_method_params(func):
     @wraps(func)
     def wrapper(self,*args,**kwargs):
         copy_kwargs = copy.deepcopy(kwargs)
         copy_kwargs.update(dict(zip(func.__code__.co_varnames[1:], args)))
         func_annotations = inspect.getfullargspec(func).annotations
         try:
-            new_kwargs = {k:conform_value(copy_kwargs[k], func_annotations[k]) for k in copy_kwargs}
+            new_kwargs = {k:coerce_value(copy_kwargs[k], func_annotations[k]) for k in copy_kwargs}
         except KeyError as e:
             warnings.warn("Missing annotations for param(s).  Not correcting any param types for method %s" % func.__qualname__)
             return func(self,*args,**kwargs)
