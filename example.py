@@ -1,158 +1,116 @@
+from investopedia_api import InvestopediaApi
 import json
-from IPython import embed
 
-from investopedia_api import InvestopediaSimulatorAPI
-from api_models import *
-
+cookies = {}
 with open('auth_cookie.json') as ifh:
     cookies = json.load(ifh)
+auth_cookie = cookies['streetscrape_test']
+# pass the value of the UI4 cookie after logging in to the site.
+client = InvestopediaApi(auth_cookie)
 
-"""
-I have multiple accounts so I parse the json to a dict which looks like this:
-{
-    "default": '1234cookievalabcdabcd1234',
-    'account1': '6754cookievaldefgdefg1234',
-    ...
-}
+p = client.portfolio
+print("account value: %s" % p.account_value)
+print("cash: %s" % p.cash)
+print("buying power: %s" % p.buying_power)
+print("annual return pct: %s" % p.annual_return_pct)
 
-"""
-# Instantiate as you see fit, just needs a string of the UI4 cookie value.
-client = InvestopediaSimulatorAPI(cookies['default'])
+# get a quote
+quote = client.get_stock_quote('GOOG')
+print(quote.__dict__)
 
-print("\n\n------%s--------" % 'GET A QUOTE')
-q = client.get_quote('MSFT')
-print("quote symbol: %s" % q.symbol)
-print("quote comp name: %s" % q.name)
-print("quote market price: %s " % q.last)
-print("quote change (per share): %s " % q.change)
-print("quote change (%%): %s " % q.change_percent)
-print("------%s--------\n\n" % '/GET A QUOTE')
-
-
-print("\n\n------%s--------" % 'OPTION CHAIN LOOKUP')
-# How to do an option chain lookup
-option_lookup_symbol = 'TEO'
-print("doing an option chain lookup for %s" % option_lookup_symbol)
-ocl = client.option_lookup(option_lookup_symbol)
-
-# list of call options in chain lookup
-ocl.calls
-
-# list of put options in chain lookup
-ocl.puts
+# option chain lookup
+chain = client.get_option_chain('AAPL')
+calls = chain.calls
+puts = chain.puts
+print(calls[0].__dict__)
+print(puts[0].__dict__)
 
 
-call_option1 = ocl.calls[0]
-call_option2 = ocl.calls[1]
+# Read your portfolio
+long_positions = client.portfolio.stock_portfolio
+short_positions = client.portfolio.short_portfolio
+my_options = client.portfolio.option_portfolio
 
-put_option1 = ocl.puts[0]
-put_option2 = ocl.puts[1]
+for pos in long_positions:
+    print("--------------------")
+    print(pos.symbol)
+    print(pos.purchase_price)
+    print(pos.current_price)
+    print(pos.change)
+    print(pos.total_value)
 
-print(call_option1.symbol)
-# strike price for first call option in chain:
-print(call_option1.strike_price)
-# expiration for first call option in chain:
-print(call_option1.expiration)
-# strike price for second call option in chain:
-print("\n")
-print(call_option2.symbol)
-print(call_option2.strike_price)
-# expiration for second call option in chain:
-print(call_option2.expiration)
-print("\n")
-print(put_option1.symbol)
-# strike price for first put option in chain:
-print(put_option1.strike_price)
-# expiration for first put option in chain:
-print(put_option1.expiration)
-print("\n")
-print(put_option2.symbol)
-# strike price for second put option in chain
-print(put_option2.strike_price)
-# expiration for second put option in chain:
-print(put_option2.expiration)
-print("------%s--------\n\n" % '/OPTION CHAIN LOOKUP')
+    # This gets a quote with addtional info like volume
+    quote = pos.quote
+    print(quote.__dict__)
+    print("---------------------")
 
+for pos in short_positions:
+    print("--------------------")
+    print(pos.symbol)
+    print(pos.purchase_price)
+    print(pos.current_price)
+    print(pos.change)
+    print(pos.total_value)
 
-print("\n\n------%s--------" % 'STOCK TRADES')
-print('\n\nUncomment lines that call the execute() method on trade objects to see it place orders on investopedia.\n')
+    # This gets a quote with addtional info like volume
+    quote = pos.quote
+    print(quote.__dict__)
+    print("---------------------")
 
-# Trade params can take strings
-trade1 = StockTrade(
-    stock='GOOG',
-    quantity=10,
-    transaction_type='buy',
-    order_type='market',
-    order_duration='good_till_cancelled',
-    sendEmail=True
-)
-print("trade1 init:")
-print(trade1)
-print("\n")
+for pos in my_options:
+    print("--------------------")
+    print(pos.symbol)
+    print(pos.purchase_price)
+    print(pos.purchase_price)
+    print(pos.current_price)
+    print(pos.strike_price)
+    print(pos.expiration)
+    print(pos.total_value)
+    print("---------------------")
 
-print("trade1 validated:")
-validated1 = trade1.validate()
-print(validated1)
-# Trades can also be changed after validation, just don't forget to revalidate.
-trade1.quantity = 20
-trade1.transaction_type = 'sell_short'
-trade1.order_duration = 'day_order'
-trade1.order_type = 'market'
-print("trade1 after change:")
-print(trade1)
-print("\n")
+if len(long_positions) > 0:
+    # Generates a trade to sell all owned shares of position
+    trade = long_positions[0].sell()
+    # validate the trade
+    validated = trade.validate()
+    print(validated)
+    # place the order
+    # validated.execute()
 
-validated1 = trade1.validate()
-print("trade1 revalidated:")
-print(validated1)
+if len(short_positions) > 0:
+    # generates a trade that will cover a shorted position
+    trade = short_positions[0].cover()
+    validated = trade.validate()
+    print(validated)
+    # validated.execute()
 
-# uncomment to execute and place the order
-# validated1.execute()
+if len(my_options) > 0:
+    pos = my_options[-1]
+    # This will pull in additonal details for the option like bid,ask,etc if not expired
+    quote = pos.quote
+    print(quote.__dict__)
 
-quote = client.get_quote('AAPL')
-qty_shares_to_buy = int(3200 / quote.last)
-# can also pass in a Quote object to more easily calculate how many shares you want to trade
-trade2 = StockTrade(
-    stock=quote,
-    quantity=10,
-    # StockTrade can also take special object instances defined in stock_trade (see stock_trade.py)
-    transaction_type=TransactionType.BUY(),
-    order_type=OrderType.MARKET(),
-    order_duration=OrderDuration.GOOD_TILL_CANCELLED(),
-    sendEmail=True
-)
+# options trading coming soon.
 
-validated2 = trade2.validate()
-print("\ntrade2 validated:")
-print(validated2)
+# construct a trade (see stock_trade.py for a hint)
+trade = client.StockTrade.Trade(symbol='GOOG',quantity=10,trade_type='buy',order_type='market',duration='good_till_cancelled',send_email=True) 
+# validate the trade
+validated = trade.validate()
+print(validated)
 
-# uncomment to execute and place the order
-# validated2.execute()
+# change the trade to a day order
+trade.duration = 'day_order'
+# Another way to change the trade to a day order
+trade.duration = client.StockTrade.Duration.DAY_ORDER()
 
-# This is to inteintionally trigger a TradeExceedsMaxSharesException (because simulator rules) which can be handled during the invocation of validate()
-trade3 = StockTrade(
-    stock='AMZN',
-    quantity=9999999999999999999,
-    transaction_type='buy',
-    order_type='market',
-    order_duration='good_till_cancelled',
-    sendEmail=True
-)
-validated3 = None
-try:
-    print("\ntrade3 (will catch exception during validation):")
-    print(trade3)
-    validated3 = trade3.validate()
-except TradeExceedsMaxSharesException as e:
-    if e.max_shares > 0:
-        trade3.quantity = e.max_shares
-        print("\nhandling TradeExceedsMaxSharesException trade3.quantity set to %s shares" %
-              trade3.quantity)
-        validated3 = trade3.validate()
-        print("\ntrade3 revalidated")
-        print(validated3)
-        # uncomment to execute and place the order
-        # validated3.execute()
+# make it a limit order
+trade.order_type = 'limit 20.00'
+# alternate way
+trade.order_type = client.StockTrade.OrderType.LIMIT(20.00)
 
-print('\nUncomment lines that call the execute() method on PreparedTrade objects to see it place orders on investopedia.\n\n')
-print("------%s--------\n\n" % '/STOCK TRADES')
+# validate it, see changes:
+validated = trade.validate()
+print(validated)
+
+# submit the order
+# validated.execute()

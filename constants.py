@@ -1,3 +1,4 @@
+from decimal import Decimal
 
 class InvestopediaAuthException(Exception):
     pass
@@ -74,13 +75,15 @@ class Constants(object):
 
     OPTIONS_QUOTE_URL = 'https://globaloptions.xignite.com/xglobaloptions.json/GetAllEquityOptionChain'
 
-
-   
-   
-
-    
-
-    
+    POSITION_FIELD_TYPES = {
+        'portfolio_id': str,
+        'symbol': str,
+        'quantity': int,
+        'description': str,
+        'purcahse_price': Decimal,
+        'current_price': Decimal,
+        'total_value': Decimal,
+    }
 
     OPTION_MONTH_CODES = {
         'A': {

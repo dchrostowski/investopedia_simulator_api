@@ -5,44 +5,47 @@ from utils import UrlHelper
 from titlecase import titlecase
 import re
 from lxml import html
+from IPython import embed
 
 
-class TransactionType(object):
-    TRANSACTION_TYPES = {
+
+
+class TradeType(object):
+    TRADE_TYPES = {
         'BUY': 1,
         'SELL': 2,
         'SELL_SHORT': 3,
         'BUY_TO_COVER': 4,
     }
 
-    def __init__(self, transaction_type):
-        self._transaction_type = None
+    def __init__(self, trade_type):
+        self._trade_type = None
         self.form_data = None
-        self.transaction_type = transaction_type
+        self.trade_type = trade_type
 
     @property
-    def transaction_type(self):
-        return self._transaction_type
+    def trade_type(self):
+        return self._trade_type
 
-    @transaction_type.setter
-    def transaction_type(self, ttype):
+    @trade_type.setter
+    def trade_type(self, trade_type):
         self.form_data = None
-        ttype = ttype.upper()
+        trade_type = trade_type.upper()
         try:
-            form_arg = self.__class__.TRANSACTION_TYPES[ttype]
+            form_arg = self.__class__.TRADE_TYPES[trade_type]
             self.form_data = {'transactionTypeDropDown': form_arg}
-            self._transaction_type = ttype
+            self._trade_type = trade_type
         except KeyError:
-            err = "Invalid stock transaction type '%s'.\n" % ttype
+            err = "Invalid stock transaction type '%s'.\n" % trade_type
             err += "  Valid stock transaction types are:\n"
-            err += "\t%s\n" % ", ".join(self.__class__.TRANSACTION_TYPES.keys())
+            err += "\t%s\n" % ", ".join(self.__class__.TRADE_TYPES.keys())
             raise InvalidTradeTransactionException(err)
 
     def __repr__(self):
-        return self._transaction_type
+        return self._trade_type
 
     def __str__(self):
-        return self._transaction_type
+        return self._trade_type
 
     @classmethod
     def BUY(cls):
@@ -141,41 +144,41 @@ class OrderType(object):
         return cls('TrailingStop', price, pct)
 
 
-class OrderDuration(object):
-    ORDER_DURATIONS = {
+class Duration(object):
+    DURATIONS = {
         'DAY_ORDER': 1,
         'GOOD_TILL_CANCELLED': 2,
     }
 
     def __init__(self, duration):
-        self._order_duration = None
+        self._duration = None
         self.form_data = None
-        self.order_duration = duration
+        self.duration = duration
 
         duration = duration.upper()
 
     @property
-    def order_duration(self):
-        return self._order_duration
+    def duration(self):
+        return self._duration
 
-    @order_duration.setter
-    def order_duration(self, duration):
+    @duration.setter
+    def duration(self, duration):
         try:
             duration = duration.upper()
-            form_arg = self.__class__.ORDER_DURATIONS[duration]
+            form_arg = self.__class__.DURATIONS[duration]
             self.form_data = {'durationTypeDropDown': form_arg}
-            self._order_duration = duration
+            self._duration = duration
         except KeyError:
             err = "Invalid order duration '%s'.\n" % duration
             err += "  Valid order durations are:\n\t"
-            err += ", ".join(Constants.ORDER_DURATIONS.keys()) + "\n"
+            err += ", ".join(self.__class__.DURATIONS.keys()) + "\n"
             raise InvalidOrderDurationException(err)
 
     def __repr__(self):
-        return self._order_duration
+        return self._duration
 
     def __str__(self):
-        return self._order_duration
+        return self._duration
 
     @classmethod
     def DAY_ORDER(cls):
@@ -189,64 +192,70 @@ class OrderDuration(object):
 class StockTrade(object):
     def __init__(
             self,
-            stock,
+            symbol,
             quantity,
-            transaction_type,
+            trade_type,
             order_type=OrderType.MARKET(),
-            order_duration=OrderDuration.GOOD_TILL_CANCELLED(),
-            sendEmail=True):
+            duration=Duration.GOOD_TILL_CANCELLED(),
+            send_email=True):
 
-        if type(transaction_type) == str:
-            transaction_type = TransactionType(transaction_type)
+        if send_email:
+            send_email=1
+        else:
+            send_email=0
+
+        if type(trade_type) == str:
+            trade_type = TradeType(trade_type)
 
         if type(order_type) == str:
-            if order_type.lower() != 'market':
-                raise InvalidTradeException(
-                    "Can only pass order_type as string for simple market orders.  For stop/limit orders pass something like OrderType.LIMIT(10.00) Or OrderType.STOP(20.00)")
-            else:
-                order_type = OrderType(order_type)
+            order_type = self._order_type_validator(order_type)
+            #if order_type.lower() != 'market':
+            #    raise InvalidTradeException(
+            #        "Can only pass order_type as string for simple market orders.  For stop/limit orders pass something like OrderType.LIMIT(10.00) Or OrderType.STOP(20.00)")
+            #else:
+            #    order_type = OrderType(order_type)
 
-        if type(order_duration) == str:
-            order_duration = OrderDuration(order_duration)
+        if type(duration) == str:
+            duration = Duration(duration)
 
         try:
-            assert type(transaction_type) == TransactionType
-            assert type(order_type) == OrderType
+            assert type(trade_type).__name__ == 'TradeType'
+            assert type(order_type).__name__ == 'OrderType'
             assert type(quantity) == int
         except AssertionError:
             err = "Invalid trade.  Ensure all paramaters are properly typed."
             raise InvalidTradeException(err)
 
-        symbol = None
-        if type(stock) == str:
-            symbol = stock
-        else:
-            symbol = stock.symbol
-
         self._form_token = None
         self._symbol = symbol
         self._quantity = quantity
-        self._transaction_type = transaction_type
+        self._trade_type = trade_type
         self._order_type = order_type
-        self._order_duration = order_duration
-        self._sendEmail = sendEmail
-
-        if sendEmail:
-            sendEmail = 1
-        else:
-            sendEmail = 0
+        self._duration = duration
+        self._send_email = send_email
 
         self.form_data = {
             'symbolTextbox': self._symbol,
             'selectedValue': None,
             'quantityTextbox': self._quantity,
             'isShowMax': 0,
-            'sendConfirmationEmailCheckBox': sendEmail
+            'sendConfirmationEmailCheckBox': self._send_email
         }
 
-        self.form_data.update(transaction_type.form_data)
+        self.form_data.update(trade_type.form_data)
         self.form_data.update(order_type.form_data)
-        self.form_data.update(order_duration.form_data)
+        self.form_data.update(duration.form_data)
+
+    def _order_type_validator(self,order_type_str):
+        ots_fn, *ots_args = order_type_str.split()
+        try:
+            ots_fn = getattr(OrderType,ots_fn.upper())
+            order_type = ots_fn(*ots_args)
+            return order_type
+        except Exception as e:
+            raise InvalidOrderDurationException("str %s is invalid for OrderType" % order_type)
+        
+
 
     @property
     def symbol(self):
@@ -267,54 +276,47 @@ class StockTrade(object):
         self._quantity = q
 
     @property
-    def transaction_type(self):
-        return str(self._transaction_type)
+    def trade_type(self):
+        return str(self._trade_type)
 
-    @transaction_type.setter
-    def transaction_type(self, ttype):
-        if type(ttype) == str:
-            ttype = TransactionType(ttype)
+    @trade_type.setter
+    def trade_type(self, trade_type):
+        if type(trade_type) == str:
+            trade_type = TradeType(trade_type)
 
-        if type(ttype) == TransactionType:
-            self.form_data.update(ttype.form_data)
-            self._transaction_type = ttype
-        else:
-            raise InvalidTradeException(
-                "transaction_type must be either str or TransactionType")
+        assert type(trade_type).__name__ == 'TradeType', "Could not validate transaction type"
+        
+        self.form_data.update(trade_type.form_data)
+        self._trade_type = trade_type
 
     @property
-    def order_duration(self):
-        return str(self._order_duration)
+    def duration(self):
+        return str(self._duration)
 
-    @order_duration.setter
-    def order_duration(self, od):
-        if type(od) == str:
-            od = OrderDuration(od)
-        if type(od) == OrderDuration:
-            self.form_data.update(od.form_data)
-            self._order_duration = od
-        else:
-            raise InvalidTradeException(
-                "order_duration must be either str or OrderDuraton")
+    @duration.setter
+    def duration(self, duration):
+        if type(duration) == str:
+            duration = Duration(duration)
+        assert type(duration).__name__ == 'Duration', "Could not validate Duration"
+        
+        self.form_data.update(duration.form_data)
+        self._duration = duration
+        
 
     @property
     def order_type(self):
         return str(self._order_type)
 
     @order_type.setter
-    def order_type(self, ot):
-        if type(ot) == str and ot.lower() == 'market':
-            ot = OrderType.MARKET()
-            self.form_data.update(ot.form_data)
-            self._order_type = ot
-        elif type(ot) == OrderType:
-            self.form_data.update(ot.form_data)
-            self._order_type = ot
-        else:
-            err = "order_type property must be either a str of value 'market' or OrderType object.  Examples:\n"
-            err += "\tOrderType.MARKET()\n"
-            err += "\tOrderType.LIMIT(40.00)\n"
-            raise InvalidTradeException(err)
+    def order_type(self, order_type):
+        if type(order_type) == str:
+            order_type = self._order_type_validator(order_type)
+
+            
+        
+        assert type(order_type).__name__ == 'OrderType', 'Could not validate OrderType'
+        self.form_data.update(order_type.form_data)
+        self._order_type = order_type
 
     @property
     def form_token(self):
@@ -414,9 +416,9 @@ class StockTrade(object):
     def __repr__(self):
         return str({
             'symbol': self.symbol,
-            'transaction_type': self.transaction_type,
+            'trade_type': self.trade_type,
             'quantity': self.quantity,
-            'duration': self.order_duration,
+            'duration': self.duration,
             'price/limit': self.order_type
         })
 
