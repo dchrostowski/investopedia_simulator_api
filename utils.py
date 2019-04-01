@@ -1,5 +1,6 @@
-from constants import Constants
 
+from constants import Constants
+#import stock_trade.TradeType
 from IPython import embed
 
 
@@ -27,7 +28,7 @@ def coerce_value(value,new_type):
         return Decimal(re.sub(r'[^\d\.]+','',value))
 
     elif new_type == int:
-        return int(value)
+        return int(re.sub(r'[^\d\.]+','',value))
 
 # Allows child classes to inherit methods but prevents parent class from
 def subclass_method(func):
@@ -53,6 +54,7 @@ def coerce_method_params(func):
             return func(self,*args,**kwargs)
         return func(self,**new_kwargs)
     return wrapper
+
 
 
 class Util(object):

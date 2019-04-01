@@ -1,4 +1,5 @@
 from decimal import Decimal
+
 class InvestopediaAuthException(Exception):
     pass
 
@@ -83,14 +84,6 @@ class Constants(object):
         'current_price': Decimal,
         'total_value': Decimal,
     }
-
-
-   
-   
-
-    
-
-    
 
     OPTION_MONTH_CODES = {
         'A': {
