@@ -4,6 +4,7 @@ from utils import UrlHelper
 from IPython import embed
 import re
 import inspect
+from itertools import chain
 
 from utils import subclass_method, coerce_method_params
 from stock_trade import StockTrade
@@ -52,11 +53,18 @@ class Portfolio(object):
     def total_change(self):
         return sum(p.total_change for p in self)
 
+
     def find(self,symbol):
         if type(self).__name__ == 'Portfolio':
-            found = []
-            found.append(self.stock_portfolio.find(symbol))
-            found.append(self.short_portfolio.find(symbol))
+            
+            iter_find = chain(self.stock_portfolio.find(symbol),self.short_portfolio.find(symbol))
+            iter_find = chain(iter_find,self.option_portfolio.find(symbol))
+            return iter_find
+
+        for position in self:
+            if position.symbol.upper() == symbol.upper():
+                yield position
+
 
 
     def append(self,item):
@@ -92,7 +100,10 @@ class OptionPortfolio(Portfolio,list):
         for p in positions:
             self.append(p)
 
-
+    def find(self,symbol):
+        for pos in self:
+            if pos.option_contract.base_symbol.upper() == symbol.upper():
+                yield pos
 
 
 class Position(object):
