@@ -1,12 +1,12 @@
 
 from IPython import embed
 from api_models import Position,LongPosition, ShortPosition, OptionPosition
-from api_models import Portfolio,StockPortfolio,ShortPortfolio,OptionPortfolio
+from api_models import Portfolio,StockPortfolio,ShortPortfolio,OptionPortfolio,OpenOrder
 from api_models import StockQuote
 from constants import *
 from options import OptionChainLookup, OptionChain, OptionContract
 from session_singleton import Session
-from utils import UrlHelper
+from utils import UrlHelper, coerce_value
 from lxml import html
 import json
 import re
@@ -121,9 +121,39 @@ class OptionLookupWrapper(object):
 
 class Parsers(object):
     
+    @staticmethod
+    def get_open_trades(portfolio_tree):
+        session = Session()
+        open_trades_resp = session.get(UrlHelper.route('opentrades'))
+        open_tree = html.fromstring(open_trades_resp.text)
+        open_trade_rows = open_tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
 
-
+        ot_xpath_map = {
+            'order_id': 'td[1]/text()',
+            'symbol': 'td[5]/a/text()',
+            'cancel_link': 'td[2]/a/@href',
+            'order_date': 'td[3]/text()',
+            'quantity': 'td[6]/text()',
+            'order_price': 'td[7]/text()',
         
+        }
+
+        open_orders = []
+
+        for tr in open_trade_rows:
+            fon = lambda x: x[0] if len(x)> 0 else None
+            open_order_dict = {k:fon(tr.xpath(v)) for k,v in ot_xpath_map.items()}
+            if open_order_dict['order_price'] == 'n/a':
+                oid = open_order_dict['order_id']
+                quantity = int(open_order_dict['quantity'])
+                pxpath = '//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]//span[contains(@id,"%s")]/ancestor::tr/td[5]/span/text()' % oid
+                current_price = coerce_value(fon(portfolio_tree.xpath(pxpath)),float)
+                open_order_dict['order_price'] = current_price * quantity
+            
+            print(open_order_dict)
+            open_orders.append(OpenOrder(**open_order_dict))
+        
+        return open_orders
 
     @staticmethod
     def get_portfolio():
@@ -152,7 +182,9 @@ class Parsers(object):
         portfolio_args['stock_portfolio'] = stock_portfolio
         portfolio_args['short_portfolio'] = short_portfolio
         portfolio_args['option_portfolio'] = option_portfolio
-
+        open_orders = Parsers.get_open_trades(portfolio_tree)
+        for order in open_orders:
+            print(order.__dict__)
         return Portfolio(**portfolio_args)
 
     @staticmethod

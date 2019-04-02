@@ -12,8 +12,28 @@ import inspect
 from decimal import Decimal
 import copy
 import warnings
+import datetime
+
+def date_regex(input_date):
+    datetime_obj = None
+    try:
+        # mon_day_year_hour_min_sec_ampm
+        date_ints = re.search(r'(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2})\:(\d{1,2})\:(\d{1,2})\s+(AM|PM)',input_date).groups()
+        hour = int(date_ints[3])
+        if date_ints[6] == 'PM':
+            hour += 12
+        datetime_obj = datetime.datetime(int(date_ints[2]),int(date_ints[0]),int(date_ints[1]),hour,int(date_ints[5]))
+    except Exception as e:
+        print("error while parsing order date")
+        return input_date
+
+    return datetime_obj
+        
 
 def coerce_value(value,new_type):
+    if type(value) != str and type(value) == new_type:
+        return value
+    
     if new_type not in (str,Decimal,int):
         return value
     
@@ -23,7 +43,7 @@ def coerce_value(value,new_type):
 
     if new_type == str:
         return value
-        
+    
     if new_type == Decimal:
         return Decimal(re.sub(r'[^\d\.]+','',value))
 
