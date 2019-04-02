@@ -13,7 +13,10 @@ import re
 from warnings import warn
 import requests
 import datetime
+from ratelimit import limits,sleep_and_retry
 
+@sleep_and_retry
+@limits(calls=6,period=30)
 def option_lookup(symbol):
     session = Session()
     resp = session.get(UrlHelper.route('tradeoption'))
@@ -61,18 +64,21 @@ def option_lookup(symbol):
         stock=symbol, calls=call_option_chain, puts=put_option_chain)
     return option_chain_lookup
 
-
-
+@sleep_and_retry
+@limits(calls=10,period=60)
 def stock_quote(symbol):
-    
     url = UrlHelper.route('lookup')
     session = Session()
     resp = session.post(url, data={'symbol': symbol})
     resp.raise_for_status()
     with open('/home/dan/quotebox.html','w') as ofh:
         ofh.write(resp.text)
-    
-    tree = html.fromstring(resp.text)
+    try:
+        tree = html.fromstring(resp.text)
+    except Exception:
+        warn("unable to get quote for %s" % symbol)
+        return
+
     xpath_map = {
         'name': '//h3[@class="companyname"]/text()',
         'symbol': '//table[contains(@class,"table3")]/tbody/tr[1]/td[1]/h3[contains(@class,"pill")]/text()',
@@ -120,8 +126,9 @@ class OptionLookupWrapper(object):
 
 
 class Parsers(object):
-    
     @staticmethod
+    @sleep_and_retry
+    @limits(calls=6,period=30)
     def get_open_trades(portfolio_tree):
         session = Session()
         open_trades_resp = session.get(UrlHelper.route('opentrades'))
@@ -147,15 +154,20 @@ class Parsers(object):
                 oid = open_order_dict['order_id']
                 quantity = int(open_order_dict['quantity'])
                 pxpath = '//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]//span[contains(@id,"%s")]/ancestor::tr/td[5]/span/text()' % oid
-                current_price = coerce_value(fon(portfolio_tree.xpath(pxpath)),float)
-                open_order_dict['order_price'] = current_price * quantity
-            
-            print(open_order_dict)
-            open_orders.append(OpenOrder(**open_order_dict))
-        
+                
+                try:
+                    current_price = coerce_value(fon(portfolio_tree.xpath(pxpath)),Decimal)
+                    open_order_dict['order_price'] = current_price * quantity
+                except Exception as e:
+                    warn("Unable to parse open trade value for %s" % open_order_dict['symbol'])
+                    open_order_dict['order_price'] = 0
+                
+                open_orders.append(OpenOrder(**open_order_dict))
         return open_orders
-
+    
     @staticmethod
+    @sleep_and_retry
+    @limits(calls=6,period=30)
     def get_portfolio():
         session = Session()
         portfolio_response = session.get(UrlHelper.route('portfolio'))
@@ -182,8 +194,8 @@ class Parsers(object):
         portfolio_args['stock_portfolio'] = stock_portfolio
         portfolio_args['short_portfolio'] = short_portfolio
         portfolio_args['option_portfolio'] = option_portfolio
-        open_orders = Parsers.get_open_trades(portfolio_tree)
-        for order in open_orders:
+        portfolio_args['open_orders'] = Parsers.get_open_trades(portfolio_tree)
+        for order in portfolio_args['open_orders']:
             print(order.__dict__)
         return Portfolio(**portfolio_args)
 
@@ -203,7 +215,8 @@ class Parsers(object):
 
         for tr in trs:
             # <div class="detailButton btn-expand close" id="PS_LONG_0" data-symbol="TMO" data-portfolioid="5700657" data-stocktype="long"></div>
-            position_data = {k: tr.xpath(v)[0] for k, v in xpath_map.items()}
+            fon = lambda x: x[0] if len(x)> 0 else None
+            position_data = {k: fon(tr.xpath(v)) for k, v in xpath_map.items()}
 
             stock_type = tr.xpath('td[1]/div/@data-stocktype')[0]
             trade_link = tr.xpath('td[2]/a[2]/@href')[0]
@@ -223,12 +236,4 @@ class Parsers(object):
                 quote_fn = OptionLookupWrapper(underlying,contract_symbol,oc).wrap_quote
                 option_pos = OptionPosition(oc,quote_fn,stock_type, **position_data)
 
-                option_portfolio.append(option_pos)                
-
-    
-    @staticmethod 
-    def parse_trade(link):
-        session = Session()
-        resp = session.get(link)
-        with open('/home/dan/trade.html') as ofh:
-            ofh.write(resp.text)
+                option_portfolio.append(option_pos)

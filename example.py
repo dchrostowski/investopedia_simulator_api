@@ -25,18 +25,6 @@ puts = chain.puts
 print(calls[0].__dict__)
 print(puts[0].__dict__)
 
-print('-------------------------')
-for pos in client.portfolio.find('TEVA'):
-    print(pos.__dict__)
-
-
-for pos in client.portfolio.option_portfolio.find('TEVA'):
-    print(pos.__dict__)
-
-for pos in client.portfolio.stock_portfolio.find('TMO'):
-    print(pos.__dict__)
-print("---------------------------")
-
 
 
 

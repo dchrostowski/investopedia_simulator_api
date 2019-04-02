@@ -22,9 +22,10 @@ op = p.option_portfolio
 from itertools import chain
 
 
+embed()
 
-symbols_to_short = ['adnt','CPS','DF','INWK','FTD','ORN','INWK','arex','TEDU','ROX','CLW','PRA','AREX','OMI','RLGY','RAIL','OBE','NEWM']
-symbols_to_buy = ['ENSG','HMNF','CYBR','HMNF','DMLP','DRI','CDNS','GRMN','ATHM','TPL','UBNT','OKE']
+symbols_to_short = ['DPLD','CBL','BGG','ASNA','PAM','UEPS','LLEX','TGB','DY','LBY','TUSK','VNET','MD']
+symbols_to_buy = []
 shortf = []
 buyf = []
 for sym in symbols_to_short:
@@ -37,38 +38,37 @@ for sym in symbols_to_buy:
 
 shortf = list(set(shortf))
 buyf = list(set(buyf))
+shorts = {}
+for sym in shortf:
+    quote = client.get_stock_quote(sym)
+    if quote:
+        shorts[sym] = int(1000/quote.last)
 
-shorts = {sym: int(1000/client.get_stock_quote(sym).last) for sym in shortf}
+
+#shorts = {sym: int(1000/client.get_stock_quote(sym).last) for sym in shortf}
 buys = {sym: int(1000/client.get_stock_quote(sym).last) for sym in buyf}
 
 print(shorts)
 print(buys)
 
 for k,v in shorts.items():
-    time.sleep(2)
     trade = client.StockTrade.Trade(k,v,'sell_short')
     print(trade)
-    time.sleep(3)
     try:
         v = trade.validate()
         print(v)
-        time.sleep(3)
         v.execute()
-        time.sleep(3)
     except Exception:
         pass
 
 for k,v in buys.items():
-    time.sleep(2)
     trade = client.StockTrade.Trade(k,v,'buy')
     print(trade)
-    time.sleep(3)
+
     try:
         v = trade.validate()
         print(v)
-        time.sleep(3)
         v.execute()
-        time.sleep(3)
     except Exception:
         pass
 

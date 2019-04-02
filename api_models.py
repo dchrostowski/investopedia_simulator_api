@@ -46,7 +46,8 @@ class Portfolio(object):
         annual_return_pct: Decimal,
         stock_portfolio: object,
         short_portfolio: object,
-        option_portfolio: object
+        option_portfolio: object,
+        open_orders: object
     ):
         self.account_value = account_value
         self.buying_power = buying_power
@@ -56,6 +57,7 @@ class Portfolio(object):
         self._stock_portfolio = stock_portfolio
         self._short_portfolio = short_portfolio
         self._option_portfolio = option_portfolio
+        self.open_orders = open_orders
 
     @classmethod
     def _validate_append(cls,portfolio,position):
@@ -78,7 +80,13 @@ class Portfolio(object):
         stfn = self.stock_portfolio.find
         shfn = self.short_portfolio.find
         opfn = self.option_portfolio.find
-        for position in [opfn(sym),shfn(sym),stfn(sym)]:
+        found = None
+        for order in self.open_orders:
+            if order.symbol.upper() == sym.upper():
+                found = order
+                break
+
+        for position in [opfn(sym),shfn(sym),stfn(sym),found]:
             if position is not None:
                 yield position
 
@@ -105,6 +113,7 @@ class Portfolio(object):
     @property
     def option_portfolio(self):
         return self._option_portfolio
+        
 
 
 class StockPortfolio(Portfolio,list):
