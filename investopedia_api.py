@@ -7,6 +7,7 @@ class InvestopediaApi(object):
     def __init__(self,auth_cookie):
         Session.login(auth_cookie)
         self.portfolio = Parsers.get_portfolio()
+        self.open_orders = self.portfolio.open_orders
 
     class StockTrade(StockTrade):
         class Trade(StockTrade):

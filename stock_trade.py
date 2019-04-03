@@ -6,7 +6,27 @@ from titlecase import titlecase
 import re
 from lxml import html
 from IPython import embed
+from ratelimit import limits, sleep_and_retry
 
+class InvalidTradeTransactionException(Exception):
+    pass
+
+class InvalidOrderTypeException(Exception):
+    pass
+
+class InvalidOrderDurationException(Exception):
+    pass
+
+class InvalidTradeException(Exception):
+    pass
+
+class TradeTokenNotSetException(Exception):
+    pass
+
+class TradeExceedsMaxSharesException(Exception):
+    def __init__(self, message, max_shares):
+        super().__init__(message)
+        self.max_shares = max_shares
 
 
 
@@ -209,11 +229,6 @@ class StockTrade(object):
 
         if type(order_type) == str:
             order_type = self._order_type_validator(order_type)
-            #if order_type.lower() != 'market':
-            #    raise InvalidTradeException(
-            #        "Can only pass order_type as string for simple market orders.  For stop/limit orders pass something like OrderType.LIMIT(10.00) Or OrderType.STOP(20.00)")
-            #else:
-            #    order_type = OrderType(order_type)
 
         if type(duration) == str:
             duration = Duration(duration)
@@ -334,6 +349,8 @@ class StockTrade(object):
             'action': 'showMax'
         }
 
+    @sleep_and_retry
+    @limits(calls=6,period=30)
     def _get_form_token(self):
         session = Session()
         resp = session.get(UrlHelper.route('tradestock'))
@@ -341,7 +358,8 @@ class StockTrade(object):
         token = tree.xpath(
             '//div[@class="group"]//form[@id="orderForm"]/input[@name="formToken"]/@value')[0]
         return token
-
+    @sleep_and_retry
+    @limits(calls=6,period=30)
     def _check_max_shares(self):
         session = Session()
         resp = session.post(UrlHelper.route(
@@ -374,6 +392,8 @@ class StockTrade(object):
 
         return trade_info
 
+    @sleep_and_retry
+    @limits(calls=6,period=30)
     def validate(self):
         session = Session()
         self.form_token = self._get_form_token()
@@ -431,7 +451,9 @@ class PreparedTrade(dict):
         self.url = url
         self.form_data = form_data
         self.update(kwargs)
-
+    
+    @sleep_and_retry
+    @limits(calls=6,period=30)
     def execute(self):
         session = Session()
         resp = session.post(self.url, data=self.form_data)

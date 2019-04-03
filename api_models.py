@@ -5,10 +5,34 @@ from IPython import embed
 import re
 import inspect
 from itertools import chain
+import datetime
 
-from utils import subclass_method, coerce_method_params
-from stock_trade import StockTrade
+from utils import subclass_method, coerce_method_params, date_regex
+from stock_trade import StockTrade,TradeType
 
+class OpenOrder(object):
+    @coerce_method_params
+    def __init__(
+        self: object,
+        order_id: int,
+        cancel_fn: object,
+        order_date: str,
+        symbol: str,
+        quantity: int,
+        order_price: Decimal
+        ):
+        self.order_id = order_id
+        self.cancel_fn = cancel_fn
+        # strptime with %-m/%-d/%Y %-I:%M:%S %p SHOULD WORK
+        # because it looks like this: 4/1/2019 11:10:35 PM
+        self.order_date = date_regex(order_date) # fuck it, we'll do it regex.
+        self.trade_type = "TODO"
+        self.symbol = symbol
+        self.quantity = quantity
+        self.order_price = order_price
+
+    def cancel(self):
+        return self.cancel_fn()
 
 class Portfolio(object):
     allowable_portfolios = {
@@ -25,7 +49,8 @@ class Portfolio(object):
         annual_return_pct: Decimal,
         stock_portfolio: object,
         short_portfolio: object,
-        option_portfolio: object
+        option_portfolio: object,
+        open_orders: object
     ):
         self.account_value = account_value
         self.buying_power = buying_power
@@ -35,6 +60,7 @@ class Portfolio(object):
         self._stock_portfolio = stock_portfolio
         self._short_portfolio = short_portfolio
         self._option_portfolio = option_portfolio
+        self.open_orders = open_orders
 
     @classmethod
     def _validate_append(cls,portfolio,position):
@@ -53,19 +79,22 @@ class Portfolio(object):
     def total_change(self):
         return sum(p.total_change for p in self)
 
+    def sfind(self,sym):
+        stfn = self.stock_portfolio.find
+        shfn = self.short_portfolio.find
+        opfn = self.option_portfolio.find
+
+        for position in [opfn(sym),shfn(sym),stfn(sym)]:
+            if position is not None:
+                yield position
 
     def find(self,symbol):
         if type(self).__name__ == 'Portfolio':
-            
-            iter_find = chain(self.stock_portfolio.find(symbol),self.short_portfolio.find(symbol))
-            iter_find = chain(iter_find,self.option_portfolio.find(symbol))
-            return iter_find
-
+            return self.sfind(symbol)
+        
         for position in self:
             if position.symbol.upper() == symbol.upper():
-                yield position
-
-
+                return position
 
     def append(self,item):
         self.__class__._validate_append(self,item)
@@ -82,6 +111,7 @@ class Portfolio(object):
     @property
     def option_portfolio(self):
         return self._option_portfolio
+        
 
 
 class StockPortfolio(Portfolio,list):
@@ -102,8 +132,14 @@ class OptionPortfolio(Portfolio,list):
 
     def find(self,symbol):
         for pos in self:
-            if pos.option_contract.base_symbol.upper() == symbol.upper():
-                yield pos
+            if pos.underlying.upper() == symbol.upper():
+                return pos
+
+    def find_exact(self,symbol):
+        for pos in self:
+            if pos.symbol.upper() == symbol.upper():
+                return pos
+
 
 
 class Position(object):
@@ -196,10 +232,12 @@ class OptionPosition(Position):
         assert stock_type == self.stock_type_assertion
         self._quote_fn = quote_fn
         self.option_contract = option_contract
+        self.underlying = self.option_contract.base_symbol
         self.stock_type = stock_type
         self.strike_price = self.option_contract.strike_price
         self.contract_type = self.option_contract.contract_type
         self.expiration = self.option_contract.expiration
+        self._is_expired = None
         self._quote_fn = quote_fn
         self._quote = None
 
@@ -209,6 +247,16 @@ class OptionPosition(Position):
             self.option_contract = self._quote_fn()
             self._quote=True
         return self.option_contract
+
+    @property
+    def is_expired(self):
+        if self._is_expired is None:
+            self._is_expired = False
+            if datetime.date.today() > self.expiration:
+                self._is_expired = True
+        
+        return self._is_expired
+
             
     def close(self):
         pass
