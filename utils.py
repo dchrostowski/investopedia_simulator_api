@@ -1,5 +1,5 @@
 
-from constants import Constants
+from constants import PATHS, BASE_URL
 #import stock_trade.TradeType
 from IPython import embed
 
@@ -120,8 +120,8 @@ class UrlHelper(object):
         query_params = parse.parse_qsl(query_str)
         return dict(query_params)
 
-    routes = Constants.PATHS
+    routes = PATHS
 
     @classmethod
     def route(cls, page_name):
-        return cls.append_path(Constants.BASE_URL, cls.routes[page_name])
+        return cls.append_path(BASE_URL, cls.routes[page_name])

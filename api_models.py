@@ -15,14 +15,14 @@ class OpenOrder(object):
     def __init__(
         self: object,
         order_id: int,
-        cancel_link: str,
+        cancel_fn: object,
         order_date: str,
         symbol: str,
         quantity: int,
         order_price: Decimal
         ):
         self.order_id = order_id
-        self.cancel_link = cancel_link
+        self.cancel_fn = cancel_fn
         # strptime with %-m/%-d/%Y %-I:%M:%S %p SHOULD WORK
         # because it looks like this: 4/1/2019 11:10:35 PM
         self.order_date = date_regex(order_date) # fuck it, we'll do it regex.
@@ -30,6 +30,9 @@ class OpenOrder(object):
         self.symbol = symbol
         self.quantity = quantity
         self.order_price = order_price
+
+    def cancel(self):
+        return self.cancel_fn()
 
 class Portfolio(object):
     allowable_portfolios = {
@@ -80,13 +83,8 @@ class Portfolio(object):
         stfn = self.stock_portfolio.find
         shfn = self.short_portfolio.find
         opfn = self.option_portfolio.find
-        found = None
-        for order in self.open_orders:
-            if order.symbol.upper() == sym.upper():
-                found = order
-                break
 
-        for position in [opfn(sym),shfn(sym),stfn(sym),found]:
+        for position in [opfn(sym),shfn(sym),stfn(sym)]:
             if position is not None:
                 yield position
 

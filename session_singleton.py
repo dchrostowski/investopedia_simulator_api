@@ -1,11 +1,15 @@
 from utils import UrlHelper
-from constants import *
 
 import requests
 from IPython import embed
 from lxml import html
 import warnings
 
+class NotLoggedInException(Exception):
+    pass
+
+class InvestopediaAuthException(Exception):
+    pass
 
 class Session:
     class __Session(requests.Session):

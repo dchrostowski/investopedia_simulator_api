@@ -2,6 +2,7 @@ from investopedia_api import InvestopediaApi
 import json
 from IPython import embed
 import time
+import sys
 
 cookies = {}
 with open('auth_cookie.json') as ifh:
@@ -16,6 +17,24 @@ print("cash: %s" % p.cash)
 print("buying power: %s" % p.buying_power)
 print("annual return pct: %s" % p.annual_return_pct)
 
+lp = p.stock_portfolio
+open_orders = client.portfolio.open_orders
+
+
+for pos in lp:
+    if pos.symbol.upper() in [o.symbol.upper() for o in open_orders]:
+        print("open order for %s; skipping" % pos.symbol)
+        continue
+    trade = pos.sell()
+    print(trade)
+    #validated = trade.validate()
+    #print(validated)
+    #validated.execute()
+embed()
+for order in open_orders:
+    order.cancel()
+
+sys.exit()
 sp = p.short_portfolio
 op = p.option_portfolio
 

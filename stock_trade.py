@@ -8,6 +8,25 @@ from lxml import html
 from IPython import embed
 from ratelimit import limits, sleep_and_retry
 
+class InvalidTradeTransactionException(Exception):
+    pass
+
+class InvalidOrderTypeException(Exception):
+    pass
+
+class InvalidOrderDurationException(Exception):
+    pass
+
+class InvalidTradeException(Exception):
+    pass
+
+class TradeTokenNotSetException(Exception):
+    pass
+
+class TradeExceedsMaxSharesException(Exception):
+    def __init__(self, message, max_shares):
+        super().__init__(message)
+        self.max_shares = max_shares
 
 
 
@@ -210,11 +229,6 @@ class StockTrade(object):
 
         if type(order_type) == str:
             order_type = self._order_type_validator(order_type)
-            #if order_type.lower() != 'market':
-            #    raise InvalidTradeException(
-            #        "Can only pass order_type as string for simple market orders.  For stop/limit orders pass something like OrderType.LIMIT(10.00) Or OrderType.STOP(20.00)")
-            #else:
-            #    order_type = OrderType(order_type)
 
         if type(duration) == str:
             duration = Duration(duration)

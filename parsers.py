@@ -3,7 +3,7 @@ from IPython import embed
 from api_models import Position,LongPosition, ShortPosition, OptionPosition
 from api_models import Portfolio,StockPortfolio,ShortPortfolio,OptionPortfolio,OpenOrder
 from api_models import StockQuote
-from constants import *
+from constants import OPTIONS_QUOTE_URL
 from options import OptionChainLookup, OptionChain, OptionContract
 from session_singleton import Session
 from utils import UrlHelper, coerce_value
@@ -44,7 +44,7 @@ def option_lookup(symbol):
         '_token_userid': option_user_id
     }
 
-    url = UrlHelper.set_query(Constants.OPTIONS_QUOTE_URL, option_quote_qp)
+    url = UrlHelper.set_query(OPTIONS_QUOTE_URL, option_quote_qp)
 
     resp = requests.get(url)
     option_chain = json.loads(resp.text)
@@ -71,8 +71,6 @@ def stock_quote(symbol):
     session = Session()
     resp = session.post(url, data={'symbol': symbol})
     resp.raise_for_status()
-    with open('/home/dan/quotebox.html','w') as ofh:
-        ofh.write(resp.text)
     try:
         tree = html.fromstring(resp.text)
     except Exception:
@@ -116,14 +114,23 @@ class OptionLookupWrapper(object):
         self.contract_symbol = contract_symbol
         self.contract = contract
 
-    
     def wrap_quote(self):
         # check if contract is expired here before doing a lookup
         if datetime.date.today() > self.contract.expiration:
             return self.contract
         return option_lookup(self.underlying)[self.contract_symbol]
 
-
+class CancelOrderWrapper(object):
+    def __init__(self,link):
+        self.link = link
+    @sleep_and_retry
+    @limits(calls=3,period=10)
+    def wrap_cancel(self):
+        url = "%s%s" % (UrlHelper.route('opentrades'),self.link)
+        print(url)
+        session = Session()
+        session.get(url)
+        
 
 class Parsers(object):
     @staticmethod
@@ -138,7 +145,7 @@ class Parsers(object):
         ot_xpath_map = {
             'order_id': 'td[1]/text()',
             'symbol': 'td[5]/a/text()',
-            'cancel_link': 'td[2]/a/@href',
+            'cancel_fn': 'td[2]/a/@href',
             'order_date': 'td[3]/text()',
             'quantity': 'td[6]/text()',
             'order_price': 'td[7]/text()',
@@ -154,7 +161,9 @@ class Parsers(object):
                 oid = open_order_dict['order_id']
                 quantity = int(open_order_dict['quantity'])
                 pxpath = '//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]//span[contains(@id,"%s")]/ancestor::tr/td[5]/span/text()' % oid
-                
+                cancel_link = open_order_dict['cancel_fn']
+                wrapper = CancelOrderWrapper(cancel_link)
+                open_order_dict['cancel_fn'] = wrapper.wrap_cancel
                 try:
                     current_price = coerce_value(fon(portfolio_tree.xpath(pxpath)),Decimal)
                     open_order_dict['order_price'] = current_price * quantity

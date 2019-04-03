@@ -1,7 +1,17 @@
 import re
 from IPython import embed
-from constants import *
+from constants import OPTION_MONTH_CODES
 import datetime
+
+class InvalidOptionChainException(Exception):
+    pass
+
+class InvalidOptionException(Exception):
+    pass
+
+
+
+
 
 class OptionChainLookup(dict):
     def __init__(self,stock,calls,puts):
@@ -45,11 +55,11 @@ class OptionContract(object):
             exp_year = int(int(re_search.group(2)) + 2000)
             exp_day = int(re_search.group(3))
             month_code = re_search.group(4)
-            if month_code not in Constants.OPTION_MONTH_CODES:
+            if month_code not in OPTION_MONTH_CODES:
                 raise InvalidOptionException("Invalid month code '%s'" % month_code)
             self.strike_price = float(re_search.group(5))
 
-            month_and_type_info = Constants.OPTION_MONTH_CODES[month_code]
+            month_and_type_info = OPTION_MONTH_CODES[month_code]
             exp_month = month_and_type_info['month']
 
             self.contract_type = month_and_type_info['type']
