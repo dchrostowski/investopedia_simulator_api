@@ -1,6 +1,6 @@
 from api_models import Portfolio
 from parsers import Parsers, option_lookup, stock_quote
-from stock_trade import StockTrade, TradeType, Duration, OrderType
+from stock_trade import StockTrade, TradeType, Duration, OrderType,TradeExceedsMaxSharesException
 from session_singleton import Session
 
 class InvestopediaApi(object):

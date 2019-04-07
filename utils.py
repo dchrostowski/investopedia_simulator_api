@@ -45,10 +45,10 @@ def coerce_value(value,new_type):
         return value
     
     if new_type == Decimal:
-        return Decimal(re.sub(r'[^\d\.]+','',value))
+        return Decimal(re.sub(r'[^\-\d\.]+','',value))
 
     elif new_type == int:
-        return int(re.sub(r'[^\d\.]+','',value))
+        return int(re.sub(r'[^\d\.\-]+','',value))
 
 # Allows child classes to inherit methods but prevents parent class from
 def subclass_method(func):

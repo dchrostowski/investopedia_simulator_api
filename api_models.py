@@ -6,6 +6,7 @@ import re
 import inspect
 from itertools import chain
 import datetime
+from decimal import Decimal
 
 from utils import subclass_method, coerce_method_params, date_regex
 from stock_trade import StockTrade,TradeType

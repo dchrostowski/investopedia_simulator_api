@@ -14,7 +14,7 @@ from warnings import warn
 import requests
 import datetime
 from ratelimit import limits,sleep_and_retry
-
+from decimal import Decimal
 @sleep_and_retry
 @limits(calls=6,period=30)
 def option_lookup(symbol):
@@ -173,7 +173,8 @@ class Parsers(object):
                 
                 open_orders.append(OpenOrder(**open_order_dict))
         return open_orders
-    
+
+
     @staticmethod
     @sleep_and_retry
     @limits(calls=6,period=30)
@@ -227,8 +228,11 @@ class Parsers(object):
             fon = lambda x: x[0] if len(x)> 0 else None
             position_data = {k: fon(tr.xpath(v)) for k, v in xpath_map.items()}
 
-            stock_type = tr.xpath('td[1]/div/@data-stocktype')[0]
-            trade_link = tr.xpath('td[2]/a[2]/@href')[0]
+            stock_type = fon(tr.xpath('td[1]/div/@data-stocktype'))
+            trade_link = fon(tr.xpath('td[2]/a[2]/@href'))
+
+            if stock_type is None or trade_link is None:
+                break
 
             if stock_type == 'long':
                 qw = QuoteWrapper(position_data['symbol']).wrap_quote
