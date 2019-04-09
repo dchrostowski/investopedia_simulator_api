@@ -86,11 +86,14 @@ def stock_quote(symbol):
         'change_percent': '//table[@id="Table2"]/tbody/tr[3]/th[contains(text(),"% Change")]/following-sibling::td/text()',
         'volume': '//table[@id="Table2"]/tbody/tr[4]/th[contains(text(),"Volume")]/following-sibling::td/text()'
     }
+
+    stock_quote_data = {}
     try:
         stock_quote_data = {
             k: str(tree.xpath(v)[0]).strip() for k, v in xpath_map.items()}
     except IndexError:
         warn("Unable to parse quote ")
+        return
         
 
     exchange_matches = re.search(

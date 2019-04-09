@@ -28,4 +28,9 @@ class InvestopediaApi(object):
         return stock_quote(symbol)
 
 
+    def refresh_portfolio():
+        self.portfolio = Parsers.get_portfolio()
+        self.open_orders = self.portfolio.open_orders
+
+
 
