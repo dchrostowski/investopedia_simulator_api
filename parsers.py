@@ -235,17 +235,17 @@ class Parsers(object):
             trade_link = fon(tr.xpath('td[2]/a[2]/@href'))
 
             if stock_type is None or trade_link is None:
-                break
+                continue
 
-            if stock_type == 'long':
+            elif stock_type == 'long':
                 qw = QuoteWrapper(position_data['symbol']).wrap_quote
                 long_pos = LongPosition(qw, stock_type, **position_data)
                 stock_portfolio.append(long_pos)
-            if stock_type == 'short':
+            elif stock_type == 'short':
                 qw = QuoteWrapper(position_data['symbol']).wrap_quote
                 short_pos = ShortPosition(qw,stock_type, **position_data)
                 short_portfolio.append(short_pos)
-            if stock_type == 'option':
+            elif stock_type == 'option':
                 contract_symbol = position_data['symbol']
                 oc = OptionContract(contract_name=position_data['symbol'])
                 underlying = oc.base_symbol
