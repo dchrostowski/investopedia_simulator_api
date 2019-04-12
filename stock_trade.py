@@ -40,7 +40,7 @@ class TradeType(object):
 
     def __init__(self, trade_type):
         self._trade_type = None
-        self.form_data = None
+        self._form_data = None
         self.trade_type = trade_type
 
     @property
@@ -49,17 +49,21 @@ class TradeType(object):
 
     @trade_type.setter
     def trade_type(self, trade_type):
-        self.form_data = None
+        self._form_data = None
         trade_type = trade_type.upper()
         try:
             form_arg = self.__class__.TRADE_TYPES[trade_type]
-            self.form_data = {'transactionTypeDropDown': form_arg}
+            self._form_data = {'transactionTypeDropDown': form_arg}
             self._trade_type = trade_type
         except KeyError:
-            err = "Invalid stock transaction type '%s'.\n" % trade_type
-            err += "  Valid stock transaction types are:\n"
+            err = "Invalid transaction type '%s'.\n" % trade_type
+            err += "  Valid transaction types are:\n"
             err += "\t%s\n" % ", ".join(self.__class__.TRADE_TYPES.keys())
             raise InvalidTradeTransactionException(err)
+
+    @property
+    def form_data(self):
+        return self._form_data
 
     def __repr__(self):
         return self._trade_type
