@@ -87,6 +87,14 @@ class TradeType(object):
     def BUY_TO_COVER(cls):
         return cls('BUY_TO_COVER')
 
+    @classmethod
+    def BUY_TO_OPEN(cls):
+        return cls('BUY_TO_OPEN')
+    
+    @classmethod
+    def SELL_TO_CLOSE(cls):
+        return cls('SELL_TO_CLOSE')
+
 
 class OrderType(object):
 
@@ -237,13 +245,7 @@ class StockTrade(object):
         if type(duration) == str:
             duration = Duration(duration)
 
-        try:
-            assert type(trade_type).__name__ == 'TradeType'
-            assert type(order_type).__name__ == 'OrderType'
-            assert type(quantity) == int
-        except AssertionError:
-            err = "Invalid trade.  Ensure all paramaters are properly typed."
-            raise InvalidTradeException(err)
+        
 
         self._form_token = None
         self._symbol = symbol
@@ -399,6 +401,16 @@ class StockTrade(object):
     @sleep_and_retry
     @limits(calls=6,period=30)
     def validate(self):
+
+        try:
+            assert type(trade_type).__name__ == 'TradeType'
+            assert type(order_type).__name__ == 'OrderType'
+            assert type(quantity) == int
+        except AssertionError:
+            err = "Invalid trade.  Ensure all paramaters are properly typed."
+            raise InvalidTradeException(err)
+
+        
         session = Session()
         self.form_token = self._get_form_token()
         self._check_max_shares()

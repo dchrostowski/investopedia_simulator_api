@@ -75,6 +75,14 @@ def coerce_method_params(func):
         return func(self,**new_kwargs)
     return wrapper
 
+def option_tradetype(func):
+    @wraps(func)
+    def wrapper(cls,*arg,**kwargs):
+        if cls.__name__ == 'TradeType':
+            warnings.warn("Warning: using an option-trade-specific class method.  This should not be used for stock trades.")
+        return func(cls,*args,**kwrags)
+    return wrapper
+
 
 
 class Util(object):
