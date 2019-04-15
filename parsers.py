@@ -15,11 +15,31 @@ import requests
 import datetime
 from ratelimit import limits,sleep_and_retry
 from decimal import Decimal
+
+
+
 @sleep_and_retry
 @limits(calls=6,period=30)
-def option_lookup(symbol):
+def option_lookup(symbol,strike_price_proximity=3):
+
+    def filter_contracts(olist,stock_price,spp):
+        middle_index = None
+        for i in range(len(olist)):
+            if stock_price < olist[i]['StrikePrice']:
+                middle_index = i
+                break
+        start = middle_index - spp
+        end = middle_index + spp
+        if start < 0:
+            start = 0
+        if end > len(olist) - 1:
+            end = len(olist) - 1
+
+        return olist[start:end]
+
+
     session = Session()
-    resp = session.get(UrlHelper.route('tradeoption'))
+    resp = session.get(UrlHelper.route('optionlookup'))
     tree = html.fromstring(resp.text)
 
     option_token = None
@@ -47,21 +67,21 @@ def option_lookup(symbol):
     url = UrlHelper.set_query(OPTIONS_QUOTE_URL, option_quote_qp)
 
     resp = requests.get(url)
-    option_chain = json.loads(resp.text)
-    calls = []
-    puts = []
+    option_data = json.loads(resp.text)
     
+    last_price = option_data['Quote']['Last']
+    option_chains = []
+    for e in option_data['Expirations']:
+        expiration = e['ExpirationDate']
+        filtered_calls = filter_contracts(e['Calls'],last_price,strike_price_proximity)
+        filtered_puts = filter_contracts(e['Puts'],last_price,strike_price_proximity)
 
-    for e in option_chain['Expirations']:
-        for call in e['Calls']:
-            calls.append(OptionContract(call))
-        for put in e['Puts']:
-            puts.append(OptionContract(put))
+        calls = [OptionContract(o) for o in filtered_calls]
+        puts = [OptionContract(o) for o in filtered_puts]
+        option_chains.append(OptionChain(expiration,calls=calls,puts=puts))
 
-    call_option_chain = OptionChain(calls)
-    put_option_chain = OptionChain(puts)
-    option_chain_lookup = OptionChainLookup(
-        stock=symbol, calls=call_option_chain, puts=put_option_chain)
+        
+    option_chain_lookup = OptionChainLookup(symbol,*option_chains)
     return option_chain_lookup
 
 @sleep_and_retry

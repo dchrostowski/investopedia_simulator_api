@@ -9,7 +9,7 @@ import datetime
 from decimal import Decimal
 
 from utils import subclass_method, coerce_method_params, date_regex
-from stock_trade import StockTrade,TradeType
+from trade_common import StockTrade
 
 class OpenOrder(object):
     @coerce_method_params
