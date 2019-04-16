@@ -6,6 +6,8 @@ from utils import UrlHelper
 from session_singleton import Session
 from lxml import html
 from constants import *
+from IPython import embed
+import warnings
 
 class InvalidTradeTypeException(Exception):
     pass
@@ -13,6 +15,11 @@ class InvalidOrderTypeException(Exception):
     pass
 class InvalidOrderDurationException(Exception):
     pass
+
+class TradeExceedsMaxSharesException(Exception):
+    def __init__(self, message, max_shares):
+        super().__init__(message)
+        self.max_shares = max_shares
 
 def convert_trade_props(func):
     @wraps(func)
@@ -239,6 +246,7 @@ class Duration(object):
 class Trade(object):
     def __init__(
         self,
+        security_type,
         symbol,
         quantity,
         trade_type,
@@ -246,13 +254,15 @@ class Trade(object):
         duration=Duration.GOOD_TILL_CANCELLED(),
         send_email=True):
 
+        self.security_type = security_type
+
         if send_email:
             send_email=1
         else:
             send_email=0
 
         if type(trade_type) == str:
-            trade_type = StockTradeType(trade_type)
+            trade_type = TradeType(trade_type)
 
         if type(order_type) == str:
             order_type = OrderType.fromstring(order_type)
@@ -269,22 +279,14 @@ class Trade(object):
 
         if send_email:
             self.form_data['sendConfirmationEmailCheckBox'] = 1
-        
 
-        
-
-        self._form_token = None
+        self.form_token = self._get_form_token()
         self.symbol = symbol
         self.quantity = quantity
-        self._trade_type = trade_type
-        self._order_type = order_type
-        self._duration = duration
-        
-
-        self.form_data.update(trade_type.form_data)
-        self.form_data.update(order_type.form_data)
-        self.form_data.update(duration.form_data)
-        
+        self.trade_type = trade_type
+        self.order_type = order_type
+        self.duration = duration
+        self._max_shares = None
         
 
 
@@ -351,6 +353,8 @@ class Trade(object):
 
     @property
     def form_token(self):
+        if self._form_token is None:
+            self.form_token = self._get_form_token()
         return self._form_token
 
     @form_token.setter
@@ -358,10 +362,15 @@ class Trade(object):
         self.form_data.update({'formToken': token})
         self._form_token = token
 
+    @property
+    def max_shares(self):
+        if self._max_shares is None:
+            self._max_shares = self._get_max_shares()
+        return self._max_shares
+
     @sleep_and_retry
     @limits(calls=6,period=30)
     def validate(self):
-
         assert type(self.trade_type).__name__ == 'TradeType'
         assert type(self.order_type).__name__ == 'OrderType'
         assert type(self.duration).__name__ == 'Duration'
@@ -381,6 +390,30 @@ class Trade(object):
                 assert self.trade_type in ('BUY_TO_OPEN','SELL_TO_CLOSE')
             except AssertionError:
                 raise InvalidTradeException("An option's trade type must be one of the following: BUY_TO_OPEN,SELL_TO_CLOSE")
+
+        if self.max_shares > self.quantity:
+            raise TradeExceedsMaxSharesException("Quantity for trade exceeds max of %s" % self.max_shares,self.max_shares)
+
+        uri = None
+        if self.security_type == 'option':
+            uri = UrlHelper.route('tradeoption')
+        elif self.security_type == 'stock':
+            uri = UrlHelper.route('tradestock')
+
+        uri = UrlHelper.set_query(self.query_params)
+        self.form_data['isShowMax'] = 0
+        resp = session.post(uri,data=self.form_data)
+
+        url_token = None
+        if resp.history:
+            redirect_url = resp.history[0].headers['Location']
+            redirect_qp = UrlHelper.get_query_params(redirect_url)
+            url_token = redirect_qp['urlToken']
+
+        tree = html.fromstring(resp.text)
+        trade_info = self._get_trade_info(tree)
+
+
     
     @sleep_and_retry
     @limits(calls=6,period=30)
@@ -408,15 +441,56 @@ class OptionTrade(Trade):
             order_type=OrderType.MARKET(),
             duration=Duration.GOOD_TILL_CANCELLED(),
             send_email=True):
+        super().__init__('option',contract.base_symbol,quantity,trade_type, order_type, duration, send_email)
         self.security_type = 'option'
-        super().__init__(contract.base_symbol,quantity,trade_type, order_type, duration, send_email)
+        self.contract = contract
 
+
+    @property
+    def contract(self):
+        return self._contract
+
+    @contract.setter
+    def contract(self,contract):
         self.query_params.update({
             'ap': contract.ask,
             'bid': contract.bid,
             'sym': contract.contract_name,
-            't': contract.contract_type,
+            't': contract.contract_type.lower()[0],
+            's': contract.strike_price
         })
+
+        self._contract = contract
+
+    @sleep_and_retry
+    @limits(calls=6,period=30)
+    def _get_max_shares(self):
+        uri = UrlHelper.route('tradeoption')
+        uri = UrlHelper.set_query(uri,self.query_params)
+        self.form_data['isShowMax'] = 1
+        print(self.form_data)
+        resp = Session().post(uri, data=self.form_data)
+        self.form_data['isShowMax'] = 0
+        tree = html.fromstring(resp.text)
+        try:
+            text = tree.xpath('//div[@id="limitDiv"]/span/text()')[0]
+            shares_match = re.search(r'^A\s*maximum\s*of\s*(\d+)\s*(?:shares|option)', text)
+            if shares_match:
+                return int(shares_match.group(1))
+
+        except Exception as e:
+            warnings.warn("Unable to determine max shares: %s" % e)
+            return
+        
+        warnings.warn("Could not determine max shares.")
+
+    def _get_trade_info(self):
+        return {"place": "holder"}
+
+
+
+
+
 
 class StockTrade(Trade):
     def __init__(
@@ -427,9 +501,49 @@ class StockTrade(Trade):
             order_type=OrderType.MARKET(),
             duration=Duration.GOOD_TILL_CANCELLED(),
             send_email=True):
-        super().__init__(self,symbol,quantity,trade_type,order_type,duratino,send_email)
-        self.security_type = 'stock'
+        super().__init__('stock',symbol,quantity,trade_type,order_type,duration,send_email)
+        
 
         self.form_data.update({
             'selectedValue': None,
         })
+
+    @sleep_and_retry
+    @limits(calls=6,period=30)
+    def _get_max_shares(self):
+        uri = UrlHelper.route('tradestock')
+        form_data =  {
+            'isShowMax': 1,
+            'symbolTextbox': self.symbol,
+            'action': 'showMax'
+        }
+        resp = Session().post(uri, data=form_data)
+        try:
+            shares_match = re.search(r'maximum\s*of\s*(\d+)\s*(?:shares|option)', resp.text)
+            if shares_match:
+                return int(shares_match.group(1))
+
+        except Exception as e:
+            warnings.warn("Unable to determine max shares: %s" % e)
+            return
+        
+        warnings.warn("Could not determine max shares.")
+
+    def _get_trade_info(self, tree):
+        trade_info_tables = tree.xpath(
+            '//div[@class="box-table"]/table[contains(@class,"table1")]')
+        tt1 = trade_info_tables[0]
+        tt2 = trade_info_tables[1]
+
+        trade_info = {
+            'Description': tt1.xpath('tbody/tr[2]/td[1]/text()')[0],
+            'Transaction': tt1.xpath('tbody/tr[2]/td[2]/text()')[0],
+            'StopLimit': tt1.xpath('tbody/tr[2]/td[3]/text()')[0],
+            'Duration': tt1.xpath('tbody/tr[2]/td[4]/text()')[0],
+            'Price': tt2.xpath('tbody/tr[1]/td[3]/text()')[0],
+            'Quantity': tt2.xpath('tbody/tr[2]/td[2]/text()')[0],
+            'Commision': tt2.xpath('tbody/tr[3]/td[2]/text()')[0],
+            'Est_Total': tt2.xpath('tbody/tr[4]/td[2]/text()')[0],
+        }
+
+        return trade_info

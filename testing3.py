@@ -30,7 +30,10 @@ trade_type = client.Trade.TradeType('BUY_TO_OPEN')
 duration = client.Trade.Duration.GOOD_TILL_CANCELLED()
 order_type = 'market'
 trade = client.Trade.OptionTrade(some_contract,2,trade_type=trade_type,order_type=order_type,duration=duration)
-embed()
+
+trade_type2 = 'BUY'
+duration2 = client.Trade.Duration.DAY_ORDER()
+trade2 = client.Trade.StockTrade('GOOG',2,trade_type=trade_type2,order_type=order_type,duration=duration2)
 
 
 #trade = client.Stocks.Trade(symbol='GOOG',quantity=10,trade_type='buy',order_type='market',duration='good_till_cancelled',send_email=True)                                                                                 
