@@ -1,5 +1,3 @@
-# investopedia simulator api
-
 ## Description
 A simple Python API for Investopedia's stock simulator games.  
 
