@@ -371,9 +371,9 @@ class Trade(object):
     @sleep_and_retry
     @limits(calls=6,period=30)
     def validate(self):
-        assert type(self.trade_type).__name__ == 'TradeType'
-        assert type(self.order_type).__name__ == 'OrderType'
-        assert type(self.duration).__name__ == 'Duration'
+        assert type(self._trade_type).__name__ == 'TradeType'
+        assert type(self._order_type).__name__ == 'OrderType'
+        assert type(self._duration).__name__ == 'Duration'
         assert type(self.quantity) == int
         try:
             assert self.security_type == 'stock' or self.security_type == 'option'
@@ -391,7 +391,7 @@ class Trade(object):
             except AssertionError:
                 raise InvalidTradeException("An option's trade type must be one of the following: BUY_TO_OPEN,SELL_TO_CLOSE")
 
-        if self.max_shares > self.quantity:
+        if self.quantity > self.max_shares:
             raise TradeExceedsMaxSharesException("Quantity for trade exceeds max of %s" % self.max_shares,self.max_shares)
 
         uri = None
@@ -400,8 +400,9 @@ class Trade(object):
         elif self.security_type == 'stock':
             uri = UrlHelper.route('tradestock')
 
-        uri = UrlHelper.set_query(self.query_params)
+        uri = UrlHelper.set_query(uri,self.query_params)
         self.form_data['isShowMax'] = 0
+        session = Session()
         resp = session.post(uri,data=self.form_data)
 
         url_token = None
@@ -411,6 +412,8 @@ class Trade(object):
             url_token = redirect_qp['urlToken']
 
         tree = html.fromstring(resp.text)
+        print("check submit_query_params vs self.query_params")
+        embed()
         trade_info = self._get_trade_info(tree)
 
 
@@ -484,7 +487,7 @@ class OptionTrade(Trade):
         
         warnings.warn("Could not determine max shares.")
 
-    def _get_trade_info(self):
+    def _get_trade_info(self,tree):
         return {"place": "holder"}
 
 
