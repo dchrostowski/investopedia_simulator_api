@@ -12,15 +12,15 @@ auth_cookie = cookies['streetscrape_test']
 client = InvestopediaApi(auth_cookie)
 
 
-lookup = client.get_option_chain('MSFT',strike_price_proximity=6) 
-for chain in lookup.search_by_daterange(datetime.datetime.now(), datetime.datetime(2100,1,1)):
+lookup = client.get_option_chain('MSFT', strike_price_proximity=6)
+for chain in lookup.search_by_daterange(datetime.datetime.now(), datetime.datetime(2100, 1, 1)):
     print("--------------------------------")
-    print("calls expiring on %s" % chain.expiration_date_str) 
-    for call in chain.calls: 
-        print(call) 
-    print("puts expiring on %s" % chain.expiration_date_str) 
-    for put in chain.puts: 
-        print(put) 
+    print("calls expiring on %s" % chain.expiration_date_str)
+    for call in chain.calls:
+        print(call)
+    print("puts expiring on %s" % chain.expiration_date_str)
+    for put in chain.puts:
+        print(put)
     print("--------------------------------")
 
 chain2 = list(lookup.values())[1]
@@ -29,7 +29,8 @@ print(some_contract)
 trade_type = client.Trade.TradeType('BUY_TO_OPEN')
 duration = client.Trade.Duration.GOOD_TILL_CANCELLED()
 order_type = 'market'
-trade = client.Trade.OptionTrade(some_contract,2,trade_type=trade_type,order_type=order_type,duration=duration)
+trade = client.Trade.OptionTrade(
+    some_contract, 2, trade_type=trade_type, order_type=order_type, duration=duration)
 if(trade.validate()):
     resp = trade.execute()
     print("check after execute() called")
@@ -37,11 +38,11 @@ if(trade.validate()):
 
 trade_type2 = 'BUY'
 duration2 = client.Trade.Duration.DAY_ORDER()
-trade2 = client.Trade.StockTrade('GOOG',2,trade_type=trade_type2,order_type=order_type,duration=duration2)
+trade2 = client.Trade.StockTrade(
+    'GOOG', 2, trade_type=trade_type2, order_type=order_type, duration=duration2)
 
 
-#trade = client.Stocks.Trade(symbol='GOOG',quantity=10,trade_type='buy',order_type='market',duration='good_till_cancelled',send_email=True)                                                                                 
-embed()
+#trade = client.Stocks.Trade(symbol='GOOG',quantity=10,trade_type='buy',order_type='market',duration='good_till_cancelled',send_email=True)
 #ott = OptionTradeType.BUY()
 
 #ott2 = OptionTradeType.SELL_TO_CLOSE()

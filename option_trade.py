@@ -1,83 +1,78 @@
-from stock_trade import TradeType, OrderType, Duration
-
-class OptionTradeType(TradeType):
-    TRADE_TYPES = {
-        'BUY_TO_OPEN': 1,
-        'SELL_TO_CLOSE': 2
-    }
-
-    @property
-    def form_data(self):
-        self._form_data['ddlAction'] = self._form_data.pop('transactionTypeDropDown')
-        return self._form_data
-
-    @classmethod
-    def BUY(cls):
-        return cls.BUY_TO_OPEN()
-    
-    @classmethod
-    def SELL(cls):
-        return cls.SELL_TO_CLOSE()
-
-    @classmethod
-    def BUY_TO_OPEN(cls):
-        return cls('BUY_TO_OPEN')
-
-    @classmethod
-    def SELL_TO_CLOSE(cls):
-        return cls('SELL_TO_CLOSE')
+from trade_common import TradeType, OrderType, Duration, Trade
+from lxml import html
+from ratelimit import limits, sleep_and_retry
+from utils import UrlHelper
+from session_singleton import Session
+import warnings
+from IPython import embed
+import re
 
 
-class OptionTrade(object):
+class OptionTrade(Trade):
     def __init__(
             self,
-            symbol,
+            contract,
             quantity,
             trade_type,
             order_type=OrderType.MARKET(),
             duration=Duration.GOOD_TILL_CANCELLED(),
             send_email=True):
 
-        if send_email:
-            send_email=1
-        else:
-            send_email=0
+        self.security_type = 'option'
+        self.base_url = UrlHelper.route('tradeoption')
+        self.submit_url = UrlHelper.route('tradeoption_submit')
+        super().__init__(contract.base_symbol, quantity,
+                         trade_type, order_type, duration, send_email)
 
-        if type(trade_type) == str:
-            trade_type = OptionTradeType(trade_type)
+        self.contract = contract
+        self.prepared_trade = None
 
-        if type(order_type) == str:
-            order_type = self._order_type_validator(order_type)
+    @property
+    def contract(self):
+        return self._contract
 
-        if type(duration) == str:
-            duration = Duration(duration)
+    @contract.setter
+    def contract(self, contract):
+        tt = 's'
+        if self.trade_type == 'BUY_TO_OPEN':
+            tt = 'b'
+        self.query_params.update({
+            'ap': contract.ask,
+            'bid': contract.bid,
+            'sym': contract.contract_name,
+            't': contract.contract_type.lower()[0],
+            's': contract.strike_price,
+            'msym': contract.raw['Month'],
+            'tt': tt
+        })
+        self.max_shares = self._get_max_shares()
+        self._contract = contract
 
+    @sleep_and_retry
+    @limits(calls=6, period=30)
+    def _get_max_shares(self):
+        uri = UrlHelper.set_query(self.base_url, self.query_params)
+        self.form_data['isShowMax'] = 1
+        resp = Session().post(uri, data=self.form_data)
+        tree = html.fromstring(resp.text)
+        self.form_data['isShowMax'] = 0
+        self.refresh_form_token(tree)
+        error = None
         try:
-            assert type(trade_type).__name__ == 'OptionTradeType'
-            assert type(order_type).__name__ == 'OptionOrderType'
-            assert type(quantity) == int
-        except AssertionError:
-            err = "Invalid trade.  Ensure all paramaters are properly typed."
-            raise InvalidTradeException(err)
+            text = tree.xpath('//div[@id="limitDiv"]/span/text()')[0]
+            shares_match = re.search(
+                r'^A\s*maximum\s*of\s*(\d+)\s*(?:shares|option)', text)
+            return int(shares_match.group(1))
 
-        self._form_token = None
-        self._symbol = symbol
-        self._quantity = quantity
-        self._trade_type = trade_type
-        self._order_type = order_type
-        self._duration = duration
-        self._send_email = send_email
+        except Exception as e:
+            error = e
+            warnings.warn("Unable to determine max shares: %s" % e)
+            return
+        return 0
 
-        self.form_data = {
-            'symbolTextbox': self._symbol,
-            'selectedValue': None,
-            'quantityTextbox': self._quantity,
-            'isShowMax': 0,
-            'sendConfirmationEmailCheckBox': self._send_email
-        }
-
-        self.form_data.update(trade_type.form_data)
-        self.form_data.update(order_type.form_data)
-        self.form_data.update(duration.form_data)
-
-    
+    def go_to_preview(self):
+        session = Session()
+        self.form_data.update({'btnReview': 'Preview+Order'})
+        uri = UrlHelper.set_query(UrlHelper.route(
+            'tradeoption'), self.query_params)
+        return session.post(uri, data=self.form_data)
