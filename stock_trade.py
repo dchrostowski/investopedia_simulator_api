@@ -4,12 +4,13 @@ from ratelimit import limits, sleep_and_retry
 from utils import UrlHelper
 from session_singleton import Session
 import warnings
+import re
 
 
 class StockTrade(Trade):
     def __init__(
             self,
-            contract,
+            symbol,
             quantity,
             trade_type,
             order_type=OrderType.MARKET(),
@@ -19,7 +20,7 @@ class StockTrade(Trade):
         self.security_type = 'stock'
         self.base_url = UrlHelper.route('tradestock')
         self.submit_url = UrlHelper.route('tradestock_submit')
-        super().__init__(contract.base_symbol, quantity,
+        super().__init__(symbol, quantity,
                          trade_type, order_type, duration, send_email)
 
     @sleep_and_retry
@@ -42,3 +43,9 @@ class StockTrade(Trade):
 
         warnings.warn("Could not determine max shares.")
         return 0
+
+    def go_to_preview(self):
+        session = Session()
+        uri = UrlHelper.set_query(self.base_url, self.query_params)
+        self.form_data.update({'isShowMax': 0})
+        return session.post(uri, data=self.form_data)

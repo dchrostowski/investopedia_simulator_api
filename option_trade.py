@@ -72,7 +72,7 @@ class OptionTrade(Trade):
 
     def go_to_preview(self):
         session = Session()
-        self.form_data.update({'btnReview': 'Preview+Order'})
+        self.form_data.update({'btnReview': 'Preview+Order', 'isShowMax': 0})
         uri = UrlHelper.set_query(UrlHelper.route(
             'tradeoption'), self.query_params)
         return session.post(uri, data=self.form_data)

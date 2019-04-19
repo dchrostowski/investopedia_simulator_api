@@ -284,8 +284,12 @@ class Trade(object):
         self.refresh_form_token()
         self.validated = False
 
+    
+
     def execute(self):
-        raise TradeNotValidatedException("Trade has not been validated yet.  Call validate() first.")
+        if not self.validated:
+            self.validate()
+            return self.execute()
 
     @property
     def symbol(self):

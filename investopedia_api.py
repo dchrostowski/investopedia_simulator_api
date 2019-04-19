@@ -1,7 +1,8 @@
 from api_models import Portfolio
 from parsers import Parsers, option_lookup, stock_quote
-from trade_common import Duration, OrderType, TradeType, Trade, StockTrade
+from trade_common import Duration, OrderType, TradeType, Trade
 from option_trade import OptionTrade
+from stock_trade import StockTrade
 from session_singleton import Session
 
 
@@ -11,13 +12,13 @@ class InvestopediaApi(object):
         self.portfolio = Parsers.get_portfolio()
         self.open_orders = self.portfolio.open_orders
 
-    class Trade:
-        class StockTrade(StockTrade):
-            pass
+    class StockTrade(StockTrade):
+        pass
 
-        class OptionTrade(OptionTrade):
-            pass
+    class OptionTrade(OptionTrade):
+        pass
 
+    class TradeProperties:
         class Duration(Duration):
             pass
 
