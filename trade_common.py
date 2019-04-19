@@ -16,6 +16,9 @@ class InvalidOrderTypeException(Exception):
 class InvalidOrderDurationException(Exception):
     pass
 
+class TradeNotValidatedException(Exception):
+    pass
+
 class TradeExceedsMaxSharesException(Exception):
     def __init__(self, message, max_shares):
         super().__init__(message)
@@ -280,15 +283,18 @@ class Trade(object):
         if send_email:
             self.form_data['sendConfirmationEmailCheckBox'] = 1
 
-        self.form_token = self._get_form_token()
         self.symbol = symbol
         self.quantity = quantity
         self.trade_type = trade_type
         self.order_type = order_type
         self.duration = duration
-        self._max_shares = None
-        
+        self._form_token = None
 
+        self.refresh_form_token()
+
+    def execute(self):
+        raise TradeNotValidatedException("Trade has not been validated yet.")
+    
 
     @property
     def symbol(self):
@@ -299,7 +305,7 @@ class Trade(object):
         if self.security_type == 'stock':
             self.form_data['symbolTextbox'] = symbol
         elif self.security_type == 'option':
-            self.query_params['msym'] = symbol
+            self.query_params['m'] = symbol
         self._symbol = symbol
 
     @property
@@ -311,7 +317,8 @@ class Trade(object):
         if self.security_type == 'stock':
             self.form_data['quantityTextbox'] = q
         elif self.security_type == 'option':
-            self.form_data['txNumContracts'] = q
+            self.form_data['txtNumContracts'] = q
+            self.query_params.update({'nc':q})
         self._quantity = q
 
     @property
@@ -353,20 +360,36 @@ class Trade(object):
 
     @property
     def form_token(self):
-        if self._form_token is None:
-            self.form_token = self._get_form_token()
         return self._form_token
 
     @form_token.setter
     def form_token(self, token):
-        self.form_data.update({'formToken': token})
-        self._form_token = token
+        if token is None:
+            self.form_data.pop('form_token',None)
+            self._form_token = None
+        else:
+            self.form_data.update({'formToken': token})
+            self._form_token = token
 
-    @property
-    def max_shares(self):
-        if self._max_shares is None:
-            self._max_shares = self._get_max_shares()
-        return self._max_shares
+    def _get_trade_info(self, tree):
+        trade_info_tables = tree.xpath(
+            '//div[@class="box-table"]/table[contains(@class,"table1")]')
+        tt1 = trade_info_tables[0]
+        tt2 = trade_info_tables[1]
+
+        trade_info = {
+            'Description': tt1.xpath('tbody/tr[2]/td[1]/text()')[0],
+            'Transaction': tt1.xpath('tbody/tr[2]/td[2]/text()')[0],
+            'StopLimit': tt1.xpath('tbody/tr[2]/td[3]/text()')[0],
+            'Duration': tt1.xpath('tbody/tr[2]/td[4]/text()')[0],
+            'Price': tt2.xpath('tbody/tr[1]/td[3]/text()')[0],
+            'Quantity': tt2.xpath('tbody/tr[2]/td[2]/text()')[0],
+            'Commision': tt2.xpath('tbody/tr[3]/td[2]/text()')[0],
+            'Est_Total': tt2.xpath('tbody/tr[4]/td[2]/text()')[0],
+        }
+
+        return trade_info
+
 
     @sleep_and_retry
     @limits(calls=6,period=30)
@@ -391,48 +414,61 @@ class Trade(object):
             except AssertionError:
                 raise InvalidTradeException("An option's trade type must be one of the following: BUY_TO_OPEN,SELL_TO_CLOSE")
 
-        if self.quantity > self.max_shares:
-            raise TradeExceedsMaxSharesException("Quantity for trade exceeds max of %s" % self.max_shares,self.max_shares)
-
-        uri = None
-        if self.security_type == 'option':
-            uri = UrlHelper.route('tradeoption')
-        elif self.security_type == 'stock':
-            uri = UrlHelper.route('tradestock')
-
-        uri = UrlHelper.set_query(uri,self.query_params)
-        self.form_data['isShowMax'] = 0
-        session = Session()
-        resp = session.post(uri,data=self.form_data)
-
-        url_token = None
-        if resp.history:
+        try:
+            print("before preview, form token: %s" % self.form_token)
+            resp = self.go_to_preview()
             redirect_url = resp.history[0].headers['Location']
             redirect_qp = UrlHelper.get_query_params(redirect_url)
-            url_token = redirect_qp['urlToken']
-
-        tree = html.fromstring(resp.text)
-        print("check submit_query_params vs self.query_params")
-        embed()
-        trade_info = self._get_trade_info(tree)
-
-
-    
-    @sleep_and_retry
-    @limits(calls=6,period=30)
-    def _get_form_token(self):
-        session = Session()
-        resp = None
-        if self.security_type == 'option':
-            resp = session.get(UrlHelper.route('tradeoption'))
-            token_xpath = '//form[@name="simOptTrade"]/div[@class="group"]//input[@name="formToken"]/@value'
-        elif self.security_type == 'stock':
-            resp = session.get(UrlHelper.route('tradestock'))
-            token_xpath = '//div[@class="group"]//form[@id="orderForm"]/input[@name="formToken"]/@value'
             
-        tree = html.fromstring(resp.text)
-        token = tree.xpath(token_xpath)[0]
-        return token
+            tree = html.fromstring(resp.text)
+            self.refresh_form_token(tree)
+            print("after preview, new form token: %s" % self.form_token)
+            
+            
+            
+            trade_info = self._get_trade_info(tree)
+            print("check trade_info")
+            print(trade_info)
+            
+            
+            
+            submit_query_params = redirect_qp
+
+            submit_form_data = {
+                'submitOrder': tree.xpath('//input[@name="submitOrder"]/@value')[0],
+                'formToken': self.form_token
+            }
+            print("check submit form data:")
+            print(submit_form_data)
+
+            submit_url = UrlHelper.set_query(self.submit_url,submit_query_params)
+            prepared_trade = PreparedTrade(submit_url,submit_form_data,**trade_info)
+            self.execute = prepared_trade.execute
+            return True
+        except Exception as e:
+            print("trade failed:")
+            print(e)
+            return False
+
+
+
+    def refresh_form_token(self,tree=None):
+        self.form_token = None
+        
+        if tree is None:
+            uri = None
+            if self.security_type == 'option':
+                uri = UrlHelper.route('tradeoption')
+            elif self.security_type == 'stock':
+                uri = UrlHelper.route('tradestock')
+
+            uri = UrlHelper.set_query(uri,self.query_params)
+            resp = Session().get(uri,data=self.form_data)
+            tree = html.fromstring(resp.text)
+
+        token = tree.xpath('//input[@name="formToken"]/@value')[0]
+        self.form_token = token
+        
 
 
 class OptionTrade(Trade):
@@ -447,6 +483,9 @@ class OptionTrade(Trade):
         super().__init__('option',contract.base_symbol,quantity,trade_type, order_type, duration, send_email)
         self.security_type = 'option'
         self.contract = contract
+        self.submit_url = UrlHelper.route('tradeoption_submit')
+        self.prepared_trade = None
+
 
 
     @property
@@ -455,12 +494,17 @@ class OptionTrade(Trade):
 
     @contract.setter
     def contract(self,contract):
+        tt = 's'
+        if self.trade_type == 'BUY_TO_OPEN':
+            tt='b'
         self.query_params.update({
             'ap': contract.ask,
             'bid': contract.bid,
             'sym': contract.contract_name,
             't': contract.contract_type.lower()[0],
-            's': contract.strike_price
+            's': contract.strike_price,
+            'msym': contract.raw['Month'],
+            'tt': tt
         })
 
         self._contract = contract
@@ -468,8 +512,10 @@ class OptionTrade(Trade):
     @sleep_and_retry
     @limits(calls=6,period=30)
     def _get_max_shares(self):
-        uri = UrlHelper.route('tradeoption')
-        uri = UrlHelper.set_query(uri,self.query_params)
+        if self.form_token is None:
+            session = Session()
+            uri = UrlHelper.route('tradeoption')
+            uri = UrlHelper.set_query(uri,self.query_params)
         self.form_data['isShowMax'] = 1
         print(self.form_data)
         resp = Session().post(uri, data=self.form_data)
@@ -487,8 +533,13 @@ class OptionTrade(Trade):
         
         warnings.warn("Could not determine max shares.")
 
-    def _get_trade_info(self,tree):
-        return {"place": "holder"}
+    def go_to_preview(self):
+        session = Session()
+        self.form_data.update({'btnReview':'Preview+Order'})
+        uri = UrlHelper.set_query(UrlHelper.route('tradeoption'),self.query_params)
+        return session.post(uri,data=self.form_data)
+
+
 
 
 
@@ -505,7 +556,7 @@ class StockTrade(Trade):
             duration=Duration.GOOD_TILL_CANCELLED(),
             send_email=True):
         super().__init__('stock',symbol,quantity,trade_type,order_type,duration,send_email)
-        
+        self.submit_url = UrlHelper.route('tradestock_submit')
 
         self.form_data.update({
             'selectedValue': None,
@@ -532,21 +583,18 @@ class StockTrade(Trade):
         
         warnings.warn("Could not determine max shares.")
 
-    def _get_trade_info(self, tree):
-        trade_info_tables = tree.xpath(
-            '//div[@class="box-table"]/table[contains(@class,"table1")]')
-        tt1 = trade_info_tables[0]
-        tt2 = trade_info_tables[1]
-
-        trade_info = {
-            'Description': tt1.xpath('tbody/tr[2]/td[1]/text()')[0],
-            'Transaction': tt1.xpath('tbody/tr[2]/td[2]/text()')[0],
-            'StopLimit': tt1.xpath('tbody/tr[2]/td[3]/text()')[0],
-            'Duration': tt1.xpath('tbody/tr[2]/td[4]/text()')[0],
-            'Price': tt2.xpath('tbody/tr[1]/td[3]/text()')[0],
-            'Quantity': tt2.xpath('tbody/tr[2]/td[2]/text()')[0],
-            'Commision': tt2.xpath('tbody/tr[3]/td[2]/text()')[0],
-            'Est_Total': tt2.xpath('tbody/tr[4]/td[2]/text()')[0],
-        }
-
-        return trade_info
+class PreparedTrade(dict):
+    def __init__(self, url, form_data, **kwargs):
+        self.url = url
+        self.submit_form_data = form_data
+        self.update(kwargs)
+    
+    @sleep_and_retry
+    @limits(calls=6,period=30)
+    def execute(self):
+        session = Session()
+        print("execute() called")
+        print(self.url)
+        print(self.submit_form_data)
+        resp = session.post(self.url, data=self.submit_form_data)
+        return resp

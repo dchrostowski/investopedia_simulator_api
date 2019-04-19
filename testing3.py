@@ -12,7 +12,7 @@ auth_cookie = cookies['streetscrape_test']
 client = InvestopediaApi(auth_cookie)
 
 
-lookup = client.get_option_chain('GOOG',strike_price_proximity=6) 
+lookup = client.get_option_chain('MSFT',strike_price_proximity=6) 
 for chain in lookup.search_by_daterange(datetime.datetime.now(), datetime.datetime(2100,1,1)):
     print("--------------------------------")
     print("calls expiring on %s" % chain.expiration_date_str) 
@@ -30,6 +30,10 @@ trade_type = client.Trade.TradeType('BUY_TO_OPEN')
 duration = client.Trade.Duration.GOOD_TILL_CANCELLED()
 order_type = 'market'
 trade = client.Trade.OptionTrade(some_contract,2,trade_type=trade_type,order_type=order_type,duration=duration)
+if(trade.validate()):
+    resp = trade.execute()
+    print("check after execute() called")
+    embed()
 
 trade_type2 = 'BUY'
 duration2 = client.Trade.Duration.DAY_ORDER()
