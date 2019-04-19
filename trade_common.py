@@ -12,27 +12,34 @@ import warnings
 
 class InvalidTradeTypeException(Exception):
     pass
+
+
 class InvalidOrderTypeException(Exception):
     pass
+
+
 class InvalidOrderDurationException(Exception):
     pass
 
+
 class TradeNotValidatedException(Exception):
     pass
+
 
 class TradeExceedsMaxSharesException(Exception):
     def __init__(self, message, max_shares):
         super().__init__(message)
         self.max_shares = max_shares
 
+
 def convert_trade_props(func):
     @wraps(func)
-    def wrapper(self,*arg,**kwargs):
+    def wrapper(self, *arg, **kwargs):
         copy_kwargs = copy.deepcopy(kwargs)
         copy_kwargs.update(dict(zip(func.__code__.co_varnames[1:], args)))
-        trade_type = copy_kwargs.get('trade_type',None)
-        order_type = copy_kwargs.get('order_type',None)
-        duration = copy_kwargs.get('duration',None)
+        trade_type = copy_kwargs.get('trade_type', None)
+        order_type = copy_kwargs.get('order_type', None)
+        duration = copy_kwargs.get('duration', None)
 
         if trade_type is not None and type(trade_type) == str:
             copy_kwargs['trade_type'] = TradeType(trade_type)
@@ -40,9 +47,10 @@ def convert_trade_props(func):
             copy_kwargs['order_type'] = OrderType.fromstring(order_type)
         if duration is not None and type(duration) == str:
             copy_kwargs['duration'] = Duration(duration)
-            
-        return func(self,**copy_kwrags)
+
+        return func(self, **copy_kwrags)
     return wrapper
+
 
 class TradeType(object):
     # override this in child classes
@@ -51,7 +59,7 @@ class TradeType(object):
         'SELL': {'transactionTypeDropDown': 2},
         'SELL_SHORT': {'transactionTypeDropDown': 3},
         'BUY_TO_COVER': {'transactionTypeDropDown': 4},
-        'BUY_TO_OPEN':{'ddlAction': 1},
+        'BUY_TO_OPEN': {'ddlAction': 1},
         'SELL_TO_CLOSE': {'ddlAction': 2},
     }
 
@@ -70,24 +78,25 @@ class TradeType(object):
         return self._form_data
 
     @trade_type.setter
-    def trade_type(self,trade_type):
-        trade_type = re.sub(r'\s','_',trade_type.upper())
+    def trade_type(self, trade_type):
+        trade_type = re.sub(r'\s', '_', trade_type.upper())
         if trade_type in self.__class__.TRADE_TYPES:
             self._trade_type = trade_type
             self._form_data = self.__class__.TRADE_TYPES[trade_type]
         else:
             self._form_data = {}
             self._trade_type = None
-            raise InvalidTradeTypeException("Invalid trade type '%s'"% trade_type)
+            raise InvalidTradeTypeException(
+                "Invalid trade type '%s'" % trade_type)
 
     @classmethod
     def BUY_TO_OPEN(cls):
         return cls('BUY_TO_OPEN')
-    
+
     @classmethod
     def SELL_TO_CLOSE(cls):
         return cls('SELL_TO_CLOSE')
-        
+
     @classmethod
     def BUY(cls):
         return cls('BUY')
@@ -109,6 +118,7 @@ class TradeType(object):
 
     def __str__(self):
         return self._trade_type
+
 
 class OrderType(object):
 
@@ -132,7 +142,8 @@ class OrderType(object):
             order_type = titlecase(order_type)
 
         if order_type not in self.__class__.ORDER_TYPES:
-            raise InvalidOrderTypeException("Invalid order type '%s'\n" % order_type)
+            raise InvalidOrderTypeException(
+                "Invalid order type '%s'\n" % order_type)
 
         self._form_data = {
             'Price': order_type,
@@ -142,11 +153,11 @@ class OrderType(object):
             'tStopVALTextBox': None
         }
 
-        self._form_data.update(self.__class__.ORDER_TYPES[order_type](price, pct))             
+        self._form_data.update(
+            self.__class__.ORDER_TYPES[order_type](price, pct))
         self._order_type = order_type
         self._price = price
         self._pct = pct
-        
 
     # read-only
     @property
@@ -158,15 +169,15 @@ class OrderType(object):
         return self._form_data
 
     @classmethod
-    def fromstring(cls,order_type_str):
+    def fromstring(cls, order_type_str):
         ots_fn, *ots_args = order_type_str.split()
         try:
-            ots_fn = getattr(cls,ots_fn.upper())
+            ots_fn = getattr(cls, ots_fn.upper())
             order_type = ots_fn(*ots_args)
             return order_type
         except Exception as e:
-            raise InvalidOrderDurationException("str %s is invalid for OrderType" % order_type)
-
+            raise InvalidOrderDurationException(
+                "str %s is invalid for OrderType" % order_type)
 
     @classmethod
     def MARKET(cls):
@@ -189,7 +200,6 @@ class OrderType(object):
             raise InvalidOrderTypeException(
                 "Must enter either a percent or dollar amount for traling stop.")
         return cls('TrailingStop', price, pct)
-
 
     def __repr__(self):
         pod = ''
@@ -215,7 +225,6 @@ class Duration(object):
         self._form_data = {}
         self.duration = duration
 
-
     @property
     def duration(self):
         return self._duration
@@ -226,10 +235,11 @@ class Duration(object):
 
     @duration.setter
     def duration(self, duration):
-        duration = re.sub(r'\s','_',duration.upper())
+        duration = re.sub(r'\s', '_', duration.upper())
         if duration not in self.__class__.DURATIONS:
-            raise InvalidOrderDurationException('Invalid order duration "%s"' % duration)
-        
+            raise InvalidOrderDurationException(
+                'Invalid order duration "%s"' % duration)
+
         self._form_data = self.__class__.DURATIONS[duration]
         self._duration = duration
 
@@ -247,15 +257,16 @@ class Duration(object):
     def __str__(self):
         return self._duration
 
+
 class Trade(object):
     def __init__(
-        self,
-        symbol,
-        quantity,
-        trade_type,
-        order_type=OrderType.MARKET(),
-        duration=Duration.GOOD_TILL_CANCELLED(),
-        send_email=True):
+            self,
+            symbol,
+            quantity,
+            trade_type,
+            order_type=OrderType.MARKET(),
+            duration=Duration.GOOD_TILL_CANCELLED(),
+            send_email=True):
 
         if type(trade_type) == str:
             trade_type = TradeType(trade_type)
@@ -284,8 +295,6 @@ class Trade(object):
         self.refresh_form_token()
         self.validated = False
 
-    
-
     def execute(self):
         if not self.validated:
             self.validate()
@@ -313,7 +322,7 @@ class Trade(object):
             self.form_data['quantityTextbox'] = q
         elif self.security_type == 'option':
             self.form_data['txtNumContracts'] = q
-            self.query_params.update({'nc':q})
+            self.query_params.update({'nc': q})
         self._quantity = q
 
     @property
@@ -336,10 +345,9 @@ class Trade(object):
     def duration(self, duration):
         if type(duration) == str:
             duration = Duration(duration)
-        
+
         self.form_data.update(duration.form_data)
         self._duration = duration
-        
 
     @property
     def order_type(self):
@@ -349,7 +357,7 @@ class Trade(object):
     def order_type(self, order_type):
         if type(order_type) == str:
             order_type = OrderType.fromstring(order_type)
-            
+
         self.form_data.update(order_type.form_data)
         self._order_type = order_type
 
@@ -360,7 +368,7 @@ class Trade(object):
     @form_token.setter
     def form_token(self, token):
         if token is None:
-            self.form_data.pop('formToken',None)
+            self.form_data.pop('formToken', None)
             self._form_token = None
         else:
             self.form_data.update({'formToken': token})
@@ -385,9 +393,8 @@ class Trade(object):
 
         return trade_info
 
-
     @sleep_and_retry
-    @limits(calls=6,period=30)
+    @limits(calls=6, period=30)
     def validate(self):
         assert type(self._trade_type).__name__ == 'TradeType'
         assert type(self._order_type).__name__ == 'OrderType'
@@ -396,41 +403,42 @@ class Trade(object):
         try:
             assert self.security_type == 'stock' or self.security_type == 'option'
         except AssertionError:
-            raise InvalidTradeException("security type is not specified.  Must be either 'stock' or 'option'")
+            raise InvalidTradeException(
+                "security type is not specified.  Must be either 'stock' or 'option'")
 
         if self.security_type == 'stock':
             try:
-                assert self.trade_type in ('BUY','SELL','SELL_SHORT','BUY_TO_COVER')
+                assert self.trade_type in (
+                    'BUY', 'SELL', 'SELL_SHORT', 'BUY_TO_COVER')
             except AssertionError:
-                raise InvalidTradeException("A stock's trade type must be one of the following: BUY,SELL,SELL_SHORT,BUY_TO_COVER.  Got %s " % self.trade_type)
+                raise InvalidTradeException(
+                    "A stock's trade type must be one of the following: BUY,SELL,SELL_SHORT,BUY_TO_COVER.  Got %s " % self.trade_type)
         if self.security_type == 'option':
             try:
-                assert self.trade_type in ('BUY_TO_OPEN','SELL_TO_CLOSE')
+                assert self.trade_type in ('BUY_TO_OPEN', 'SELL_TO_CLOSE')
             except AssertionError:
-                raise InvalidTradeException("An option's trade type must be one of the following: BUY_TO_OPEN,SELL_TO_CLOSE")
+                raise InvalidTradeException(
+                    "An option's trade type must be one of the following: BUY_TO_OPEN,SELL_TO_CLOSE")
         try:
             max_shares = self._get_max_shares()
             assert self.quantity <= max_shares
         except AssertionError:
-            raise TradeExceedsMaxSharesException("Quantity %s exceeds max of %s" % (self.quantity,max_shares), max_shares)
+            raise TradeExceedsMaxSharesException(
+                "Quantity %s exceeds max of %s" % (self.quantity, max_shares), max_shares)
         try:
             print("before preview, form token: %s" % self.form_token)
             resp = self.go_to_preview()
             redirect_url = resp.history[0].headers['Location']
             redirect_qp = UrlHelper.get_query_params(redirect_url)
-            
+
             tree = html.fromstring(resp.text)
             self.refresh_form_token(tree)
             print("after preview, new form token: %s" % self.form_token)
-            
-            
-            
+
             trade_info = self._get_trade_info(tree)
             print("check trade_info")
             print(trade_info)
-            
-            
-            
+
             submit_query_params = redirect_qp
 
             submit_form_data = {
@@ -440,8 +448,10 @@ class Trade(object):
             print("check submit form data:")
             print(submit_form_data)
 
-            submit_url = UrlHelper.set_query(self.submit_url,submit_query_params)
-            prepared_trade = PreparedTrade(submit_url,submit_form_data,**trade_info)
+            submit_url = UrlHelper.set_query(
+                self.submit_url, submit_query_params)
+            prepared_trade = PreparedTrade(
+                submit_url, submit_form_data, **trade_info)
             self.execute = prepared_trade.execute
             self.validated = True
             return True
@@ -450,61 +460,27 @@ class Trade(object):
             print(e)
             return False
 
-
-
-    def refresh_form_token(self,tree=None):
+    def refresh_form_token(self, tree=None):
         self.form_token = None
-        
+
         if tree is None:
             self.form_token = None
-            uri = UrlHelper.set_query(self.base_url,self.query_params)
-            resp = Session().get(uri,data=self.form_data)
+            uri = UrlHelper.set_query(self.base_url, self.query_params)
+            resp = Session().get(uri, data=self.form_data)
             tree = html.fromstring(resp.text)
 
         token = tree.xpath('//input[@name="formToken"]/@value')[0]
         self.form_token = token
-        
 
-
-
-
-
-
-
-
-
-
-
-class StockTrade(Trade):
-    def __init__(
-            self,
-            symbol,
-            quantity,
-            trade_type,
-            order_type=OrderType.MARKET(),
-            duration=Duration.GOOD_TILL_CANCELLED(),
-            send_email=True):
-        super().__init__('stock',symbol,quantity,trade_type,order_type,duration,send_email)
-        self.submit_url = UrlHelper.route('tradestock_submit')
-
-        self.form_data.update({
-            'selectedValue': None,
-        })
-
-    def go_to_preview(self):
-        session = Session()
-
-
-    
 
 class PreparedTrade(dict):
     def __init__(self, url, form_data, **kwargs):
         self.url = url
         self.submit_form_data = form_data
         self.update(kwargs)
-    
+
     @sleep_and_retry
-    @limits(calls=6,period=30)
+    @limits(calls=6, period=30)
     def execute(self):
         session = Session()
         print("execute() called")

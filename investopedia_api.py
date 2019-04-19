@@ -1,6 +1,7 @@
 from api_models import Portfolio
 from parsers import Parsers, option_lookup, stock_quote
 from trade_common import Duration, OrderType, TradeType, Trade
+from trade_common import TradeExceedsMaxSharesException, TradeNotValidatedException, InvalidOrderDurationException, InvalidOrderTypeException, InvalidTradeTypeException
 from option_trade import OptionTrade
 from stock_trade import StockTrade
 from session_singleton import Session
@@ -26,6 +27,10 @@ class InvestopediaApi(object):
             pass
 
         class TradeType(TradeType):
+            pass
+
+    class Exceptions:
+        class TradeExceedsMaxSharesException(TradeExceedsMaxSharesException):
             pass
 
     @staticmethod
