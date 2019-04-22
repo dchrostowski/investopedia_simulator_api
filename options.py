@@ -17,8 +17,11 @@ class InvalidOptionException(Exception):
 
 class OptionChainLookup(dict):
     def __init__(self,symbol,*option_chains):
+        self.expirations = {}
         for oc in option_chains:
-            self.update({
+            for contract in oc.calls + oc.puts:
+                self.update({contract.contract_name: contract})
+            self.expirations.update({
                 oc.expiration_date: oc
             })
         self.symbol = symbol
@@ -30,9 +33,9 @@ class OptionChainLookup(dict):
         return self.search_by_daterange(start_date,end_date)
 
     def search_by_daterange(self,start_date,end_date):
-        for exp_date in self.keys():
+        for exp_date in self.expirations.keys():
             if exp_date >= start_date and exp_date <= end_date:
-                yield self[exp_date]
+                yield self.expirations[exp_date]
 
 
 class OptionContract(object):
@@ -74,6 +77,9 @@ class OptionContract(object):
             self.ask = None
             self.volume = None
             self.open_int = None
+
+    def lazy_values(self):
+        return (self.last,self.bid,self.ask,self.volume,self.open_int)
 
     def __repr__(self):
         return str({
