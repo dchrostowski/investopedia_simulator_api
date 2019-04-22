@@ -1,5 +1,7 @@
-from investopedia_api import InvestopediaApi
+from investopedia_api import InvestopediaApi, TradeExceedsMaxSharesException
 import json
+import datetime
+from IPython import embed
 
 cookies = {}
 with open('auth_cookie.json') as ifh:
@@ -19,15 +21,31 @@ quote = client.get_stock_quote('GOOG')
 print(quote.__dict__)
 
 # option chain lookup
-chain = client.get_option_chain('AAPL')
-calls = chain.calls
-puts = chain.puts
-print(calls[0].__dict__)
-print(puts[0].__dict__)
+lookup = client.get_option_chain('MSFT')
+# get all options expiring between the date range specified
+for chain in lookup.search_by_daterange(datetime.datetime.now(), datetime.datetime(2100, 1, 1)):
+    print("--------------------------------")
+    print("calls expiring on %s" % chain.expiration_date_str)
+    for call in chain.calls:
+        print(call)
+    print("puts expiring on %s" % chain.expiration_date_str)
+    for put in chain.puts:
+        print(put)
+    print("--------------------------------")
 
-
-
-
+option_contract = lookup.get('MSFT2115A100')
+# order_type, duration, and send_email default to Market, Good Till Cancelled, and True respectively
+option_trade = client.OptionTrade(
+    option_contract, 10, trade_type='buy to open')
+trade_info = None
+try:
+    trade_info = option_trade.validate()
+except TradeExceedsMaxSharesException as e:
+    option_trade.quantity = e.max_shares
+    trade_info = option_trade.validate()
+if option_trade.validated:
+    print(trade_info)
+    option_trade.execute()
 # Read your portfolio
 long_positions = client.portfolio.stock_portfolio
 short_positions = client.portfolio.short_portfolio
@@ -70,49 +88,59 @@ for pos in my_options:
     print(pos.total_value)
     print("---------------------")
 
+# sell a long position
 if len(long_positions) > 0:
     # Generates a trade to sell all owned shares of position
     trade = long_positions[0].sell()
     # validate the trade
-    validated = trade.validate()
-    print(validated)
+    trade_info = trade.validate()
+    if trade.validated:
+        print(trade_info)
+        trade.execute()
     # place the order
     # validated.execute()
 
+# cover a shorted position
 if len(short_positions) > 0:
     # generates a trade that will cover a shorted position
     trade = short_positions[0].cover()
-    validated = trade.validate()
-    print(validated)
-    # validated.execute()
+    trade_info = trade.validate()
+    if trade.validated:
+        print(trade_info)
+        trade.execute()
 
+# close out an option
 if len(my_options) > 0:
-    pos = my_options[-1]
-    # This will pull in additonal details for the option like bid,ask,etc if not expired
-    quote = pos.quote
-    print(quote.__dict__)
+    trade = None
+    for option_position in my_options:
+        if not option_position.is_expired:
+            trade = option_position.close()
+            trade_info = trade.validate()
+            if trade.validated:
+                print(trade_info)
+                trade.execute()
+            break
 
-# options trading coming soon.
 
-# construct a trade (see stock_trade.py for a hint)
-trade = client.StockTrade.Trade(symbol='GOOG',quantity=10,trade_type='buy',order_type='market',duration='good_till_cancelled',send_email=True) 
+# construct a trade (see trade_common.py and stock_trade.py for a hint)
+trade1 = client.StockTrade(symbol='GOOG', quantity=10, trade_type='buy',
+                           order_type='market', duration='good_till_cancelled', send_email=True)
 # validate the trade
-validated = trade.validate()
-print(validated)
+trade_info = trade1.validate()
+print(trade_info)
 
 # change the trade to a day order
-trade.duration = 'day_order'
+trade1.duration = 'day_order'
 # Another way to change the trade to a day order
-trade.duration = client.StockTrade.Duration.DAY_ORDER()
+trade1.duration = client.TradeProperties.Duration.DAY_ORDER()
 
 # make it a limit order
-trade.order_type = 'limit 20.00'
+trade1.order_type = 'limit 20.00'
 # alternate way
-trade.order_type = client.StockTrade.OrderType.LIMIT(20.00)
+trade1.order_type = client.TradeProperties.OrderType.LIMIT(20.00)
 
 # validate it, see changes:
-validated = trade.validate()
-print(validated)
-
-# submit the order
-# validated.execute()
+trade_info = trade1.validate()
+if trade1.validated:
+    print(trade_info)
+    trade1.execute()

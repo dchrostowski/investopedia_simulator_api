@@ -9,7 +9,9 @@ import datetime
 from decimal import Decimal
 
 from utils import subclass_method, coerce_method_params, date_regex
-from stock_trade import StockTrade,TradeType
+from stock_trade import StockTrade
+from option_trade import OptionTrade
+
 
 class OpenOrder(object):
     @coerce_method_params
@@ -21,12 +23,12 @@ class OpenOrder(object):
         symbol: str,
         quantity: int,
         order_price: Decimal
-        ):
+    ):
         self.order_id = order_id
         self.cancel_fn = cancel_fn
         # strptime with %-m/%-d/%Y %-I:%M:%S %p SHOULD WORK
         # because it looks like this: 4/1/2019 11:10:35 PM
-        self.order_date = date_regex(order_date) # fuck it, we'll do it regex.
+        self.order_date = date_regex(order_date)  # fuck it, we'll do it regex.
         self.trade_type = "TODO"
         self.symbol = symbol
         self.quantity = quantity
@@ -34,6 +36,7 @@ class OpenOrder(object):
 
     def cancel(self):
         return self.cancel_fn()
+
 
 class Portfolio(object):
     allowable_portfolios = {
@@ -64,11 +67,13 @@ class Portfolio(object):
         self.open_orders = open_orders
 
     @classmethod
-    def _validate_append(cls,portfolio,position):
+    def _validate_append(cls, portfolio, position):
         portfolio_type = type(portfolio).__name__
         position_type = type(position).__name__
-        assert_val = (portfolio_type in cls.allowable_portfolios[position_type])
-        assert assert_val, "Cannot insert a %s into a %s" % (position_type,portfolio_type)
+        assert_val = (
+            portfolio_type in cls.allowable_portfolios[position_type])
+        assert assert_val, "Cannot insert a %s into a %s" % (
+            position_type, portfolio_type)
 
     @property
     @subclass_method
@@ -80,25 +85,25 @@ class Portfolio(object):
     def total_change(self):
         return sum(p.total_change for p in self)
 
-    def sfind(self,sym):
+    def sfind(self, sym):
         stfn = self.stock_portfolio.find
         shfn = self.short_portfolio.find
         opfn = self.option_portfolio.find
 
-        for position in [opfn(sym),shfn(sym),stfn(sym)]:
+        for position in [opfn(sym), shfn(sym), stfn(sym)]:
             if position is not None:
                 yield position
 
-    def find(self,symbol):
+    def find(self, symbol):
         if type(self).__name__ == 'Portfolio':
             return self.sfind(symbol)
-        
+
         for position in self:
             if position.symbol.upper() == symbol.upper():
                 return position
 
-    def append(self,item):
-        self.__class__._validate_append(self,item)
+    def append(self, item):
+        self.__class__._validate_append(self, item)
         super().append(item)
 
     @property
@@ -112,48 +117,47 @@ class Portfolio(object):
     @property
     def option_portfolio(self):
         return self._option_portfolio
-        
 
 
-class StockPortfolio(Portfolio,list):
+class StockPortfolio(Portfolio, list):
     def __init__(self, positions=[]):
         for p in positions:
             self.append(p)
 
 
-class ShortPortfolio(Portfolio,list):
-    def __init__(self,positions=[]):
+class ShortPortfolio(Portfolio, list):
+    def __init__(self, positions=[]):
         for p in positions:
             self.append(p)
 
-class OptionPortfolio(Portfolio,list):
-    def __init__(self,positions=[]):
+
+class OptionPortfolio(Portfolio, list):
+    def __init__(self, positions=[]):
         for p in positions:
             self.append(p)
 
-    def find(self,symbol):
+    def find(self, symbol):
         for pos in self:
             if pos.underlying.upper() == symbol.upper():
                 return pos
 
-    def find_exact(self,symbol):
+    def find_exact(self, symbol):
         for pos in self:
             if pos.symbol.upper() == symbol.upper():
                 return pos
 
 
-
 class Position(object):
     @coerce_method_params
     def __init__(
-      self: object, 
-      portfolio_id: str, 
-      symbol: str, 
-      quantity: int, 
-      description:str, 
-      purchase_price: Decimal, 
-      current_price: Decimal, 
-      total_value: Decimal ):
+            self: object,
+            portfolio_id: str,
+            symbol: str,
+            quantity: int,
+            description: str,
+            purchase_price: Decimal,
+            current_price: Decimal,
+            total_value: Decimal):
 
         self.portfolio_id = portfolio_id
         self.symbol = symbol
@@ -178,7 +182,7 @@ class LongPosition(Position):
         self.stock_type = stock_type
         self._quote_fn = quote_fn
         self._quote = None
-    
+
     @property
     def change(self):
         return self.current_price - self.purchase_price
@@ -189,13 +193,11 @@ class LongPosition(Position):
             self._quote = self._quote_fn()
         return self._quote
 
-    def sell(self,**trade_kwargs):
+    def sell(self, **trade_kwargs):
         trade_kwargs['symbol'] = self.symbol
-        trade_kwargs.setdefault('quantity',self.quantity)
+        trade_kwargs.setdefault('quantity', self.quantity)
         trade_kwargs['trade_type'] = 'sell'
         return StockTrade(**trade_kwargs)
-        
-        
 
 
 class ShortPosition(Position):
@@ -218,36 +220,44 @@ class ShortPosition(Position):
         if self._quote is None:
             self._quote = self._quote_fn()
         return self._quote
-    
+
     def cover(self, **trade_kwargs):
         trade_kwargs['symbol'] = self.symbol
-        trade_kwargs.setdefault('quantity',self.quantity)
+        trade_kwargs.setdefault('quantity', self.quantity)
         trade_kwargs['trade_type'] = 'buy_to_cover'
         return StockTrade(**trade_kwargs)
 
 
 class OptionPosition(Position):
     stock_type_assertion = 'option'
+
     def __init__(self, option_contract, quote_fn, stock_type, **kwargs):
         super().__init__(**kwargs)
         assert stock_type == self.stock_type_assertion
         self._quote_fn = quote_fn
-        self.option_contract = option_contract
-        self.underlying = self.option_contract.base_symbol
+        self._contract = option_contract
+        self.underlying = self._contract.base_symbol
         self.stock_type = stock_type
-        self.strike_price = self.option_contract.strike_price
-        self.contract_type = self.option_contract.contract_type
-        self.expiration = self.option_contract.expiration
+        self.strike_price = self._contract.strike_price
+        self.contract_type = self._contract.contract_type
+        self.expiration = self._contract.expiration
         self._is_expired = None
         self._quote_fn = quote_fn
         self._quote = None
 
     @property
+    def contract(self):
+        for val in self._contract.lazy_values():
+            if val is None:
+                return self.quote
+        return self._contract
+
+    @property
     def quote(self):
         if self._quote is None:
-            self.option_contract = self._quote_fn()
-            self._quote=True
-        return self.option_contract
+            self._contract = self._quote_fn()
+            self._quote = True
+        return self._contract
 
     @property
     def is_expired(self):
@@ -255,25 +265,28 @@ class OptionPosition(Position):
             self._is_expired = False
             if datetime.date.today() > self.expiration:
                 self._is_expired = True
-        
+
         return self._is_expired
 
-            
-    def close(self):
-        pass
+    def close(self, **trade_kwargs):
+        trade_kwargs['contract'] = self.contract
+        trade_kwargs.setdefault('quantity', self.quantity)
+        trade_kwargs['trade_type'] = 'sell to close'
+        return OptionTrade(**trade_kwargs)
+
 
 class StockQuote(object):
     @coerce_method_params
     def __init__(
-        self:object,
+        self: object,
         symbol: str,
         name: str,
         exchange: str,
         last: Decimal,
         change: Decimal,
         change_percent: Decimal,
-        volume:int
-        
+        volume: int
+
     ):
         self.symbol = symbol
         self.name = name
@@ -282,4 +295,3 @@ class StockQuote(object):
         self.change = change
         self.change_percent = change_percent
         self.volume = volume
-        

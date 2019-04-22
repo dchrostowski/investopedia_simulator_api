@@ -8,7 +8,9 @@ PATHS = {
     'lookup': '/ajax/quotebox.aspx',
     'tradestock': '/trade/tradestock.aspx',
     'tradestock_submit': '/trade/tradestockpreview.aspx',
-    'tradeoption': '/trade/getquote.aspx',
+    'tradeoption_submit': '/trade/tradeoptionspreview.aspx',
+    'tradeoption': '/trade/TradeOptions.aspx',
+    'optionlookup': '/trade/getquote.aspx',
     'opentrades': '/trade/showopentrades.aspx',
 }
 
