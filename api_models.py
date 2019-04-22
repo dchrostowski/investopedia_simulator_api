@@ -252,8 +252,6 @@ class OptionPosition(Position):
                 return self.quote
         return self._contract
 
-    
-
     @property
     def quote(self):
         if self._quote is None:
@@ -270,11 +268,11 @@ class OptionPosition(Position):
 
         return self._is_expired
 
-    def close(self,**trade_kwargs):
-        trade_kwargs['contract'] = self.contractd
-        trade_kwargs.setdefautlt('quantity', self.quantity)
+    def close(self, **trade_kwargs):
+        trade_kwargs['contract'] = self.contract
+        trade_kwargs.setdefault('quantity', self.quantity)
         trade_kwargs['trade_type'] = 'sell to close'
-        return OptionTrade(self.contract.self.quantity,)
+        return OptionTrade(**trade_kwargs)
 
 
 class StockQuote(object):

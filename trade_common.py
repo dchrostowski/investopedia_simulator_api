@@ -426,7 +426,6 @@ class Trade(object):
             raise TradeExceedsMaxSharesException(
                 "Quantity %s exceeds max of %s" % (self.quantity, max_shares), max_shares)
         try:
-            print("before preview, form token: %s" % self.form_token)
             resp = self.go_to_preview()
             redirect_url = resp.history[0].headers['Location']
             redirect_qp = UrlHelper.get_query_params(redirect_url)
@@ -454,7 +453,7 @@ class Trade(object):
                 submit_url, submit_form_data, **trade_info)
             self.execute = prepared_trade.execute
             self.validated = True
-            return True
+            return prepared_trade
         except Exception as e:
             print("trade failed:")
             print(e)
