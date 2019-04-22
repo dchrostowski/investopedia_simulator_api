@@ -75,16 +75,17 @@ if len(long_positions) > 0:
     trade = long_positions[0].sell()
     # validate the trade
     validated = trade.validate()
-    print(validated)
+    if trade.validated:
+        trade.execute()
     # place the order
     # validated.execute()
 
 if len(short_positions) > 0:
     # generates a trade that will cover a shorted position
     trade = short_positions[0].cover()
-    validated = trade.validate()
-    print(validated)
-    # validated.execute()
+    trade.validate()
+    if trade.validated:
+        trade.execute()
 
 if len(my_options) > 0:
     pos = my_options[-1]
@@ -95,24 +96,25 @@ if len(my_options) > 0:
 # options trading coming soon.
 
 # construct a trade (see stock_trade.py for a hint)
-trade = client.StockTrade.Trade(symbol='GOOG',quantity=10,trade_type='buy',order_type='market',duration='good_till_cancelled',send_email=True) 
+trade1 = client.StockTrade(symbol='GOOG',quantity=10,trade_type='buy',order_type='market',duration='good_till_cancelled',send_email=True) 
 # validate the trade
 validated = trade.validate()
 print(validated)
 
 # change the trade to a day order
-trade.duration = 'day_order'
+trade1.duration = 'day_order'
 # Another way to change the trade to a day order
-trade.duration = client.StockTrade.Duration.DAY_ORDER()
+trade1.duration = client.TradeProperties.Duration.DAY_ORDER()
 
 # make it a limit order
-trade.order_type = 'limit 20.00'
+trade1.order_type = 'limit 20.00'
 # alternate way
-trade.order_type = client.StockTrade.OrderType.LIMIT(20.00)
+trade.order_type = client.TradeProperties.OrderType.LIMIT(20.00)
 
 # validate it, see changes:
-validated = trade.validate()
-print(validated)
+trade1.validate()
+if trade1.validated:
+    trade1.execute()
 
-# submit the order
-# validated.execute()
+
+

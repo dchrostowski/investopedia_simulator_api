@@ -29,7 +29,7 @@ print(some_contract)
 trade_type = client.TradeProperties.TradeType('BUY_TO_OPEN')
 duration = client.TradeProperties.Duration.GOOD_TILL_CANCELLED()
 order_type = 'market'
-trade = client.Trade.OptionTrade(some_contract,2,trade_type=trade_type,order_type=order_type,duration=duration)
+trade = client.OptionTrade(some_contract,2,trade_type=trade_type,order_type=order_type,duration=duration)
 if(trade.validate()):
     resp = trade.execute()
     print("check after execute() called")

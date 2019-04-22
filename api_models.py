@@ -10,6 +10,7 @@ from decimal import Decimal
 
 from utils import subclass_method, coerce_method_params, date_regex
 from stock_trade import StockTrade
+from option_trade import OptionTrade
 
 
 class OpenOrder(object):
@@ -234,31 +235,31 @@ class OptionPosition(Position):
         super().__init__(**kwargs)
         assert stock_type == self.stock_type_assertion
         self._quote_fn = quote_fn
-        self._option_contract = option_contract
-        self.underlying = self._option_contract.base_symbol
+        self._contract = option_contract
+        self.underlying = self._contract.base_symbol
         self.stock_type = stock_type
-        self.strike_price = self._option_contract.strike_price
-        self.contract_type = self._option_contract.contract_type
-        self.expiration = self._option_contract.expiration
+        self.strike_price = self._contract.strike_price
+        self.contract_type = self._contract.contract_type
+        self.expiration = self._contract.expiration
         self._is_expired = None
         self._quote_fn = quote_fn
         self._quote = None
 
     @property
-    def option_contract(self):
-        for val in self._option_contract.lazy_values():
+    def contract(self):
+        for val in self._contract.lazy_values():
             if val is None:
                 return self.quote
-        return self._option_contract
+        return self._contract
 
     
 
     @property
     def quote(self):
         if self._quote is None:
-            self.option_contract = self._quote_fn()
+            self._contract = self._quote_fn()
             self._quote = True
-        return self.option_contract
+        return self._contract
 
     @property
     def is_expired(self):
@@ -269,8 +270,11 @@ class OptionPosition(Position):
 
         return self._is_expired
 
-    def close(self):
-        pass
+    def close(self,**trade_kwargs):
+        trade_kwargs['contract'] = self.contractd
+        trade_kwargs.setdefautlt('quantity', self.quantity)
+        trade_kwargs['trade_type'] = 'sell to close'
+        return OptionTrade(self.contract.self.quantity,)
 
 
 class StockQuote(object):
