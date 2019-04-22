@@ -8,6 +8,7 @@ This is very much a work-in-progress. However, currently you can:
 * Short sell/cover short positions
 * Submit trade orders - buy long positions, sell short positions
 * Perform option chain lookups
+* See branch devel/options_trading_2 for options trading (will be merged soon.)
 
 To implement:
 * Options trading
