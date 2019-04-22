@@ -234,15 +234,24 @@ class OptionPosition(Position):
         super().__init__(**kwargs)
         assert stock_type == self.stock_type_assertion
         self._quote_fn = quote_fn
-        self.option_contract = option_contract
-        self.underlying = self.option_contract.base_symbol
+        self._option_contract = option_contract
+        self.underlying = self._option_contract.base_symbol
         self.stock_type = stock_type
-        self.strike_price = self.option_contract.strike_price
-        self.contract_type = self.option_contract.contract_type
-        self.expiration = self.option_contract.expiration
+        self.strike_price = self._option_contract.strike_price
+        self.contract_type = self._option_contract.contract_type
+        self.expiration = self._option_contract.expiration
         self._is_expired = None
         self._quote_fn = quote_fn
         self._quote = None
+
+    @property
+    def option_contract(self):
+        for val in self._option_contract.lazy_values():
+            if val is None:
+                return self.quote
+        return self._option_contract
+
+    
 
     @property
     def quote(self):
