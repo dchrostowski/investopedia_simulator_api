@@ -2,17 +2,15 @@
 A simple Python API for Investopedia's stock simulator games.  
 
 ## Features
-This is very much a work-in-progress. However, currently you can:
+Currently you can:
 * Read all positions in your option, stock, and short portfolios
 * Buy/Sell long positions
 * Short sell/cover short positions
-* Submit trade orders - buy long positions, sell short positions
 * Perform option chain lookups
-* See branch devel/options_trading_2 for options trading (will be merged soon.)
-
-To implement:
-* Options trading
+* Buy/sell options
 * Read pending/open trades
+
+Todo:
 * Setting the default game, changing games
 * Whatever else I can think of
 
