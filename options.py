@@ -1,5 +1,4 @@
 import re
-from IPython import embed
 from constants import OPTION_MONTH_CODES
 import datetime
 import calendar

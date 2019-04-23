@@ -1,7 +1,6 @@
 from utils import UrlHelper
 
 import requests
-from IPython import embed
 from lxml import html
 import warnings
 

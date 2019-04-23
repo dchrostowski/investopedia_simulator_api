@@ -1,7 +1,6 @@
 from investopedia_api import InvestopediaApi, TradeExceedsMaxSharesException
 import json
 import datetime
-from IPython import embed
 
 cookies = {}
 with open('auth_cookie.json') as ifh:
@@ -33,7 +32,7 @@ for chain in lookup.search_by_daterange(datetime.datetime.now(), datetime.dateti
         print(put)
     print("--------------------------------")
 
-option_contract = lookup.get('MSFT2115A100')
+option_contract = lookup.get('MSFT2115A120')
 # order_type, duration, and send_email default to Market, Good Till Cancelled, and True respectively
 option_trade = client.OptionTrade(
     option_contract, 10, trade_type='buy to open')
