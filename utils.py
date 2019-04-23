@@ -1,18 +1,24 @@
 
 from constants import PATHS, BASE_URL
 #import stock_trade.TradeType
-from IPython import embed
-
-
 from urllib import parse
 import re
-
 from functools import wraps
 import inspect
 from decimal import Decimal
 import copy
 import warnings
 import datetime
+from threading import Thread
+import queue
+def validate_and_execute_trade(trade):
+    trade.refresh_form_token()
+    trade_info = trade.validate()
+    if trade.validated:
+        print(trade_info)
+        trade.execute()
+    else:
+        warnings.warn("Unable to validate trade.")
 
 def date_regex(input_date):
     datetime_obj = None
@@ -125,3 +131,43 @@ class UrlHelper(object):
     @classmethod
     def route(cls, page_name):
         return cls.append_path(BASE_URL, cls.routes[page_name])
+
+
+class Task(object):
+    def __init__(self,*args,**kwargs):
+        self.fn = kwargs.pop('fn')
+        self.args = args
+        self.kwargs = kwargs
+
+    def execute(self):
+        self.fn(*self.args,**self.kwargs)
+
+class TaskQueue(object):
+    def __init__(self,default_task_function=None):
+        self.queue = queue.Queue()
+        self.thread = Thread(target=self.worker)
+        self.thread.daemon = True
+        self.default_task_fn = default_task_function or self._task_fn
+        self.thread.start()
+
+    def enqueue(self,*args,**kwargs):
+        kwargs.setdefault('fn',self.default_task_fn)
+        self.queue.put(Task(*args,**kwargs))
+
+    @staticmethod
+    def task_fn(*args,**kwargs):
+        raise Exception("No task function defined!  Either override this method or pass a function to the TaskQueue.")
+
+    def worker(self):
+        while True:
+            task = self.queue.get()
+            if task is None:
+                self.queue.task_done()
+                break
+            task.execute()
+            self.queue.task_done()
+
+    def finish(self):
+        self.queue.put(None)
+        self.queue.join()
+        self.thread.join()

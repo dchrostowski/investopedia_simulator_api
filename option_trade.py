@@ -4,7 +4,6 @@ from ratelimit import limits, sleep_and_retry
 from utils import UrlHelper
 from session_singleton import Session
 import warnings
-from IPython import embed
 import re
 
 

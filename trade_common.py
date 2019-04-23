@@ -6,7 +6,6 @@ from utils import UrlHelper
 from session_singleton import Session
 from lxml import html
 from constants import *
-from IPython import embed
 import warnings
 
 
@@ -396,6 +395,11 @@ class Trade(object):
     @sleep_and_retry
     @limits(calls=6, period=30)
     def validate(self):
+        if self.validated:
+            warnings.warn("Warning: trade has already been validated.  Revalidating...")
+            self.form_data.pop('btnReview',None)
+            self.refresh_form_token()
+            self.validated = False
         assert type(self._trade_type).__name__ == 'TradeType'
         assert type(self._order_type).__name__ == 'OrderType'
         assert type(self._duration).__name__ == 'Duration'

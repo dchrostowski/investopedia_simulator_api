@@ -5,6 +5,7 @@ from trade_common import TradeExceedsMaxSharesException, TradeNotValidatedExcept
 from option_trade import OptionTrade
 from stock_trade import StockTrade
 from session_singleton import Session
+from utils import TaskQueue, validate_and_execute_trade
 
 
 class InvestopediaApi(object):
@@ -12,6 +13,11 @@ class InvestopediaApi(object):
         Session.login(auth_cookie)
         self.portfolio = Parsers.get_portfolio()
         self.open_orders = self.portfolio.open_orders
+
+    class TradeQueue(TaskQueue):
+        def __init__(self):
+            super().__init__(default_task_function=validate_and_execute_trade)
+
 
     class StockTrade(StockTrade):
         pass
@@ -27,10 +33,6 @@ class InvestopediaApi(object):
             pass
 
         class TradeType(TradeType):
-            pass
-
-    class Exceptions:
-        class TradeExceedsMaxSharesException(TradeExceedsMaxSharesException):
             pass
 
     @staticmethod

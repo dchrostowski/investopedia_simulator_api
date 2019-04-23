@@ -1,9 +1,7 @@
 from constants import *
 from session_singleton import Session
 from utils import UrlHelper
-from IPython import embed
 import re
-import inspect
 from itertools import chain
 import datetime
 from decimal import Decimal
