@@ -3,6 +3,24 @@ from investopedia_api import InvestopediaApi, TradeExceedsMaxSharesException
 import json
 import datetime
 
+def choose_option_contract(option_lookup,put=True):
+        now = datetime.datetime.now()
+        start = now + datetime.timedelta(days=10)
+        end = now + datetime.timedelta(days=40)
+        chosen = None
+        highest_open_int = 0
+        for chain in option_lookup.search_by_daterange(start,end):
+            contracts = chain.calls
+            if put:
+                contracts = chain.puts
+            
+            for contract in contracts:
+                if contract.bid/contract.ask > 0.95 and contract.open_int > highest_open_int:
+                    chosen = contract
+                    highest_open_int = contract.open_int
+
+        return chosen
+
 def do_stuff(client):
     p = client.portfolio
     print("account value: %s" % p.account_value)
@@ -23,14 +41,16 @@ def do_stuff(client):
     lookup = client.get_option_chain('MSFT')
     # get all options expiring between the date range specified
     for chain in lookup.search_by_daterange(datetime.datetime.now(), datetime.datetime(2100, 1, 1)):
-        print("--------------------------------")
-        print("calls expiring on %s" % chain.expiration_date_str)
+        #print("--------------------------------")
+        #print("calls expiring on %s" % chain.expiration_date_str)
         for call in chain.calls:
-            print(call)
-        print("puts expiring on %s" % chain.expiration_date_str)
+            pass
+           # print(call)
+        #print("puts expiring on %s" % chain.expiration_date_str)
         for put in chain.puts:
-            print(put)
-        print("--------------------------------")
+            pass
+            #print(put)
+        #print("--------------------------------")
 
     # option chain lookup
     lookup = client.get_option_chain('AAPL')
@@ -49,14 +69,16 @@ def do_stuff(client):
     lookup = client.get_option_chain('AMZN')
     # get all options expiring between the date range specified
     for chain in lookup.search_by_daterange(datetime.datetime.now(), datetime.datetime(2100, 1, 1)):
-        print("--------------------------------")
-        print("calls expiring on %s" % chain.expiration_date_str)
+        #print("--------------------------------")
+        #print("calls expiring on %s" % chain.expiration_date_str)
         for call in chain.calls:
-            print(call)
-        print("puts expiring on %s" % chain.expiration_date_str)
+            pass
+            #print(call)
+        #print("puts expiring on %s" % chain.expiration_date_str)
         for put in chain.puts:
-            print(put)
-        print("--------------------------------")
+            pass
+            #print(put)
+        #print("--------------------------------")
 
 cookies = {}
 with open('auth_cookie.json') as ifh:
@@ -72,8 +94,8 @@ trade3 = client.StockTrade("AAPL",4,'SELL_SHORT')
 
 trade_queue.enqueue(trade1)
 trade_queue.enqueue(trade2)
-trade_queue.enqueue(trade3)
+#trade_queue.enqueue(trade3)
 
-do_stuff(client)
+#do_stuff(client)
 
 trade_queue.finish()

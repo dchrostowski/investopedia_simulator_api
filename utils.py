@@ -11,9 +11,22 @@ import warnings
 import datetime
 from threading import Thread
 import queue
-def validate_and_execute_trade(trade):
-    trade.refresh_form_token()
-    trade_info = trade.validate()
+
+class TradeExceedsMaxSharesException(Exception):
+    def __init__(self, message, max_shares):
+        super().__init__(message)
+        self.max_shares = max_shares
+
+def validate_and_execute_trade(trade,adjust_shares=True):
+    try:
+        trade_info = trade.validate()
+    except TradeExceedsMaxSharesException as e:
+        if adjust_shares and e.max_shares > 0:
+            trade.quantity = e.max_shares
+            return validate_and_execute_trade(trade,adjust_shares=False)
+        else:
+            raise e
+
     if trade.validated:
         print(trade_info)
         trade.execute()

@@ -6,7 +6,6 @@ from session_singleton import Session
 import warnings
 import re
 
-
 class OptionTrade(Trade):
     def __init__(
             self,
@@ -44,23 +43,28 @@ class OptionTrade(Trade):
             'msym': contract.raw['Month'],
             'tt': tt
         })
-        self.max_shares = self._get_max_shares()
+
         self._contract = contract
 
     @sleep_and_retry
     @limits(calls=6, period=30)
     def _get_max_shares(self):
+        if self.form_token is None:
+            self.refresh_form_token()
         uri = UrlHelper.set_query(self.base_url, self.query_params)
         self.form_data['isShowMax'] = 1
         resp = Session().post(uri, data=self.form_data)
         tree = html.fromstring(resp.text)
         self.form_data['isShowMax'] = 0
         self.refresh_form_token(tree)
-        error = None
+        fon = lambda x: x[0] if len(x)> 0 else None
+
         try:
-            text = tree.xpath('//div[@id="limitDiv"]/span/text()')[0]
+            xpath1 = '//div[@id="limitDiv"]/span[@id="limitationLabel"]/text()'
+            expath2 = '//div[@id="limitDiv"]/span/text()'
+            text = fon(tree.xpath(xpath1)) or fon(tree.xpath(xpath2))
             shares_match = re.search(
-                r'^A\s*maximum\s*of\s*(\d+)\s*(?:shares|option)', text)
+                r'maximum\s*of\s*(\d+)\s*(?:shares|option)', text)
             return int(shares_match.group(1))
 
         except Exception as e:

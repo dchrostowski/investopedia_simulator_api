@@ -2,7 +2,7 @@ import re
 from titlecase import titlecase
 import copy
 from ratelimit import limits, sleep_and_retry
-from utils import UrlHelper
+from utils import UrlHelper,TradeExceedsMaxSharesException
 from session_singleton import Session
 from lxml import html
 from constants import *
@@ -23,12 +23,6 @@ class InvalidOrderDurationException(Exception):
 
 class TradeNotValidatedException(Exception):
     pass
-
-
-class TradeExceedsMaxSharesException(Exception):
-    def __init__(self, message, max_shares):
-        super().__init__(message)
-        self.max_shares = max_shares
 
 
 def convert_trade_props(func):
@@ -291,7 +285,6 @@ class Trade(object):
         self.order_type = order_type
         self.duration = duration
         self._form_token = None
-        self.refresh_form_token()
         self.validated = False
 
     def execute(self):
@@ -395,6 +388,9 @@ class Trade(object):
     @sleep_and_retry
     @limits(calls=6, period=30)
     def validate(self):
+        if self.form_token is None:
+            self.refresh_form_token()
+
         if self.validated:
             warnings.warn("Warning: trade has already been validated.  Revalidating...")
             self.form_data.pop('btnReview',None)
@@ -436,11 +432,7 @@ class Trade(object):
 
             tree = html.fromstring(resp.text)
             self.refresh_form_token(tree)
-            print("after preview, new form token: %s" % self.form_token)
-
             trade_info = self._get_trade_info(tree)
-            print("check trade_info")
-            print(trade_info)
 
             submit_query_params = redirect_qp
 
@@ -448,8 +440,6 @@ class Trade(object):
                 'submitOrder': tree.xpath('//input[@name="submitOrder"]/@value')[0],
                 'formToken': self.form_token
             }
-            print("check submit form data:")
-            print(submit_form_data)
 
             submit_url = UrlHelper.set_query(
                 self.submit_url, submit_query_params)
@@ -486,8 +476,5 @@ class PreparedTrade(dict):
     @limits(calls=6, period=30)
     def execute(self):
         session = Session()
-        print("execute() called")
-        print(self.url)
-        print(self.submit_form_data)
         resp = session.post(self.url, data=self.submit_form_data)
         return resp
