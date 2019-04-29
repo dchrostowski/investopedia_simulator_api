@@ -61,7 +61,7 @@ class OptionTrade(Trade):
 
         try:
             xpath1 = '//div[@id="limitDiv"]/span[@id="limitationLabel"]/text()'
-            expath2 = '//div[@id="limitDiv"]/span/text()'
+            xpath2 = '//div[@id="limitDiv"]/span/text()'
             text = fon(tree.xpath(xpath1)) or fon(tree.xpath(xpath2))
             shares_match = re.search(
                 r'maximum\s*of\s*(\d+)\s*(?:shares|option)', text)

@@ -13,13 +13,13 @@ import requests
 import datetime
 from ratelimit import limits,sleep_and_retry
 from decimal import Decimal
-
+import logging
 
 
 @sleep_and_retry
 @limits(calls=6,period=30)
 def option_lookup(symbol,strike_price_proximity=3):
-
+    logging.debug("OPTION LOOKUP FOR %s" % symbol)
     def filter_contracts(olist,stock_price,spp):
         middle_index = None
         for i in range(len(olist)):
@@ -66,8 +66,18 @@ def option_lookup(symbol,strike_price_proximity=3):
 
     resp = requests.get(url)
     option_data = json.loads(resp.text)
-    
-    last_price = option_data['Quote']['Last']
+
+    quote = option_data['Quote']
+    if quote is None:
+        logging.debug(option_data)
+        raise Exception("No option quote data for %s" % symbol)
+
+
+    try:
+        last_price = option_data['Quote']['Last']
+    except Exception as e:
+        logging.debug(option_data)
+        logging.debug(e)
     option_chains = []
     for e in option_data['Expirations']:
         expiration = e['ExpirationDate']
@@ -178,6 +188,9 @@ class Parsers(object):
         for tr in open_trade_rows:
             fon = lambda x: x[0] if len(x)> 0 else None
             open_order_dict = {k:fon(tr.xpath(v)) for k,v in ot_xpath_map.items()}
+            symbol_match = re.search(r'^([^\.\d]+)',open_order_dict['symbol'])
+            if symbol_match:
+                open_order_dict['symbol'] = symbol_match.group(1)
             if open_order_dict['order_price'] == 'n/a':
                 oid = open_order_dict['order_id']
                 quantity = int(open_order_dict['quantity'])

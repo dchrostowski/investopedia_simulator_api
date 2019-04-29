@@ -389,6 +389,7 @@ class Trade(object):
     @limits(calls=6, period=30)
     def validate(self):
         if self.form_token is None:
+            print("refreshing form token")
             self.refresh_form_token()
 
         if self.validated:
@@ -449,8 +450,9 @@ class Trade(object):
             self.validated = True
             return prepared_trade
         except Exception as e:
-            print("trade failed:")
+            print("trade failed for %s %s %s" % (self.symbol, self.quantity, self.trade_type))
             print(e)
+            raise e
             return False
 
     def refresh_form_token(self, tree=None):
@@ -460,10 +462,14 @@ class Trade(object):
             self.form_token = None
             uri = UrlHelper.set_query(self.base_url, self.query_params)
             resp = Session().get(uri, data=self.form_data)
+            with open('/home/dan/ipa_debug.html','w') as ofh:
+                ofh.write(resp.text)
             tree = html.fromstring(resp.text)
-
-        token = tree.xpath('//input[@name="formToken"]/@value')[0]
+        fon = lambda x: x[0] if len(x)>0 else None
+        token = fon(tree.xpath('//input[@name="formToken"]/@value'))
         self.form_token = token
+        print("form token: %s" % self.form_token)
+        print("form data: %s" % self.form_data)
 
 
 class PreparedTrade(dict):

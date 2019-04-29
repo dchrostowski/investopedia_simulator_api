@@ -11,6 +11,7 @@ import warnings
 import datetime
 from threading import Thread
 import queue
+import traceback
 
 class TradeExceedsMaxSharesException(Exception):
     def __init__(self, message, max_shares):
@@ -153,7 +154,12 @@ class Task(object):
         self.kwargs = kwargs
 
     def execute(self):
-        self.fn(*self.args,**self.kwargs)
+        try:
+            self.fn(*self.args,**self.kwargs)
+        except Exception as e:
+            print(e)
+            traceback.print_exc()
+
 
 class TaskQueue(object):
     def __init__(self,default_task_function=None):
