@@ -462,8 +462,6 @@ class Trade(object):
             self.form_token = None
             uri = UrlHelper.set_query(self.base_url, self.query_params)
             resp = Session().get(uri, data=self.form_data)
-            with open('/home/dan/ipa_debug.html','w') as ofh:
-                ofh.write(resp.text)
             tree = html.fromstring(resp.text)
         fon = lambda x: x[0] if len(x)>0 else None
         token = fon(tree.xpath('//input[@name="formToken"]/@value'))
