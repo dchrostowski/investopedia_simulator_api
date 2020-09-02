@@ -14,17 +14,19 @@ import datetime
 from ratelimit import limits,sleep_and_retry
 from decimal import Decimal
 import logging
-
+from IPython import embed
 
 @sleep_and_retry
 @limits(calls=6,period=30)
 def option_lookup(symbol,strike_price_proximity=3):
     logging.debug("OPTION LOOKUP FOR %s" % symbol)
     def filter_contracts(olist,stock_price,spp):
-        middle_index = None
+        if olist is None:
+            return []
+        middle_index = 0
         for i in range(len(olist)):
             if stock_price < olist[i]['StrikePrice']:
-                middle_index = i
+                middle_index += 1
                 break
         start = middle_index - spp
         end = middle_index + spp
@@ -81,8 +83,11 @@ def option_lookup(symbol,strike_price_proximity=3):
     option_chains = []
     for e in option_data['Expirations']:
         expiration = e['ExpirationDate']
+        print("check e['Calls']")
         filtered_calls = filter_contracts(e['Calls'],last_price,strike_price_proximity)
+        print("check e['Puts']")
         filtered_puts = filter_contracts(e['Puts'],last_price,strike_price_proximity)
+        
 
         calls = [OptionContract(o) for o in filtered_calls]
         puts = [OptionContract(o) for o in filtered_puts]
