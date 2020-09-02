@@ -63,8 +63,6 @@ class Session:
         payload = credentials
         resp = cls.__session.post(post_url,data=payload)
 
-        url = UrlHelper.route('portfolio')
-
         url = UrlHelper.route('home')
         resp = cls.__session.get(url)
 
