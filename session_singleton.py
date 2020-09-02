@@ -4,7 +4,6 @@ import requests
 from lxml import html
 import warnings
 import re
-import urllib.parse
 
 class NotLoggedInException(Exception):
     pass

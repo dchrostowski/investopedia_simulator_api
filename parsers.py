@@ -82,9 +82,7 @@ def option_lookup(symbol,strike_price_proximity=3):
     option_chains = []
     for e in option_data['Expirations']:
         expiration = e['ExpirationDate']
-        print("check e['Calls']")
         filtered_calls = filter_contracts(e['Calls'],last_price,strike_price_proximity)
-        print("check e['Puts']")
         filtered_puts = filter_contracts(e['Puts'],last_price,strike_price_proximity)
         
 
