@@ -25,7 +25,7 @@ p = client.portfolio
 print("account value: %s" % p.account_value)
 ```
 
-## Environmentgit 
+## Environment 
 Python 3.6.7.  I just use a virtualenv and install using pip from requirements.txt.  If you don't know how to do that:
 
 ```
