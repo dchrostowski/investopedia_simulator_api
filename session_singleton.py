@@ -3,6 +3,7 @@ from utils import UrlHelper
 import requests
 from lxml import html
 import warnings
+import re
 
 class NotLoggedInException(Exception):
     pass
@@ -32,7 +33,7 @@ class Session:
 
     @classmethod
     def is_logged_in(cls):
-        if cls.__session is not None and cls.__session.cookies.get('UI4') is not None:
+        if cls.__session is not None and cls.__session.cookies.get('AWSALBCORS') is not None:
             return True
 
         return False
@@ -42,39 +43,25 @@ class Session:
         cls.__session = None
 
     @classmethod
-    def login(cls, auth_cookie_value):
+    def login(cls, credentials):
         if cls.is_logged_in():
-            raise InvestopediaAuthException(
-                "Already logged in.  This exception is to prevent inadvertantly overwriting the auth cookie.  Use Session.logout() first")
-        if cls.__session is not None and auth_cookie_value == cls.__auth_cookie:
             warnings.warn(
-                "authenticated session already exists, returning session")
+                "You are already logged in.  If you want to logout call Session.logout().  Returning session")
             return cls.__session
-
-        url = UrlHelper.route('portfolio')
-
-        auth_cookie = {
-            "version": 0,
-            "name": 'UI4',
-            "value": auth_cookie_value,
-            "port": None,
-            # "port_specified":False,
-            "domain": '.investopedia.com',
-            # "domain_specified":False,
-            # "domain_initial_dot":False,
-            "path": '/',
-            # "path_specified":True,
-            "secure": False,
-            "expires": None,
-            "discard": True,
-            "comment": None,
-            "comment_url": None,
-            "rest": {},
-            "rfc2109": False
-        }
-
+        
+        url = 'https://www.investopedia.com/auth/realms/investopedia/shopify-auth/inv-simulator/login?&redirectUrl=https%3A%2F%2Fwww.investopedia.com%2Fauth%2Frealms%2Finvestopedia%2Fprotocol%2Fopenid-connect%2Fauth%3Fresponse_type%3Dcode%26approval_prompt%3Dauto%26redirect_uri%3Dhttps%253A%252F%252Fwww.investopedia.com%252Fsimulator%252Fhome.aspx%26client_id%3Dinv-simulator-conf'
         cls.__session = requests.Session()
-        cls.__session.cookies.set(**auth_cookie)
+        resp = cls.__session.get(url)
+        
+        tree = html.fromstring(resp.text)
+        script_with_url = tree.xpath('//script/text()')[0]
+
+        redirect_url = re.search(r'REDIRECT_URL\s=\s"([^"]+)"', script_with_url).group(1)
+        resp = cls.__session.get(redirect_url.encode('utf-8').decode('unicode_escape'))
+        tree = html.fromstring(resp.text)
+        post_url = tree.xpath('//form/@action')[0]
+        payload = credentials
+        resp = cls.__session.post(post_url,data=payload)
 
         url = UrlHelper.route('home')
         resp = cls.__session.get(url)

@@ -2,12 +2,12 @@ from investopedia_api import InvestopediaApi, TradeExceedsMaxSharesException
 import json
 import datetime
 
-cookies = {}
-with open('auth_cookie.json') as ifh:
-    cookies = json.load(ifh)
-auth_cookie = cookies['streetscrape_test']
-# pass the value of the UI4 cookie after logging in to the site.
-client = InvestopediaApi(auth_cookie)
+credentials = {}
+with open('credentials.json') as ifh:
+    credentials = json.load(ifh)
+# look at credentials_example.json
+# credentials = {"username": "you@example.org", "password": "yourpassword" }
+client = InvestopediaApi(credentials)
 
 p = client.portfolio
 print("account value: %s" % p.account_value)
@@ -32,7 +32,7 @@ for chain in lookup.search_by_daterange(datetime.datetime.now(), datetime.dateti
         print(put)
     print("--------------------------------")
 
-option_contract = lookup.get('MSFT2115A120')
+option_contract = lookup.get('MSFT2217R80')
 # order_type, duration, and send_email default to Market, Good Till Cancelled, and True respectively
 option_trade = client.OptionTrade(
     option_contract, 10, trade_type='buy to open')
@@ -60,7 +60,8 @@ for pos in long_positions:
 
     # This gets a quote with addtional info like volume
     quote = pos.quote
-    print(quote.__dict__)
+    if quote is not None:
+        print(quote.__dict__)
     print("---------------------")
 
 for pos in short_positions:
