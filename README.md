@@ -44,12 +44,13 @@ python exmaple.py
 from investopedia_api import InvestopediaApi
 import json
 
-cookies = {}
-with open('auth_cookie.json') as ifh:
-    cookies = json.load(ifh)
-auth_cookie = cookies['account_cookie']
-# pass the value of the UI4 cookie after logging in to the site.
-client = InvestopediaApi(auth_cookie)
+credentials = {}
+with open('credentials.json') as ifh:
+    credentials = json.load(ifh)
+
+# look at credentials_example.json
+# credentials = {"username": "you@example.org", "password": "yourpassword"}
+client = InvestopediaApi(credentials)
 
 p = client.portfolio
 print("account value: %s" % p.account_value)
