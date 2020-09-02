@@ -14,7 +14,6 @@ import datetime
 from ratelimit import limits,sleep_and_retry
 from decimal import Decimal
 import logging
-from IPython import embed
 
 @sleep_and_retry
 @limits(calls=6,period=30)
