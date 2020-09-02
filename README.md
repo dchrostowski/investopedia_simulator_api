@@ -16,11 +16,16 @@ Todo:
 
 
 ## Authentication
-Investopedia put a recaptcha puzzle thing on their login page.  This was easily circumvented by getting a human being to solve the captcha. After clicking on traffic lights 0-67 times, you will finally see the cookie.  Just copy the value and pass it to the InvestopediaSimulatorAPI constructor. **The cookie name is UI4.  Simply copy its value but DO NOT PUBLISH IT unless you don't care about someone potentially gaining access to your Investopedia account**
-### Security considerations
-**Don't fork this repo and publish your cookie for the whole world to see.  Anyone with that string can access your account.**  For your convenience I added auth_cooke.json to .gitignore.  If you plan on forking this to a publicly accessible repository then you should probably put your cookie in that untracked file and read from it.
+Simply pass a dict to InvetopediaAPI constructor with a username and password.  
+```
+from investopedia_api import InvestopediaApi
+credentials = {"username" "youremail@example.org", "password": "your password"}
+client = InvestopediaAPI(credentials)
+p = client.portfolio
+print("account value: %s" % p.account_value)
+```
 
-## Environment
+## Environmentgit 
 Python 3.6.7.  I just use a virtualenv and install using pip from requirements.txt.  If you don't know how to do that:
 
 ```
