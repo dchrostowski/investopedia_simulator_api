@@ -386,7 +386,7 @@ class Trade(object):
         return trade_info
 
     @sleep_and_retry
-    @limits(calls=6, period=30)
+    @limits(calls=6, period=20)
     def validate(self):
         if self.form_token is None:
             print("refreshing form token")
@@ -477,7 +477,7 @@ class PreparedTrade(dict):
         self.update(kwargs)
 
     @sleep_and_retry
-    @limits(calls=6, period=30)
+    @limits(calls=6, period=20)
     def execute(self):
         session = Session()
         resp = session.post(self.url, data=self.submit_form_data)

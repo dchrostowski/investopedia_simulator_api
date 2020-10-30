@@ -16,7 +16,7 @@ from decimal import Decimal
 import logging
 
 @sleep_and_retry
-@limits(calls=6,period=30)
+@limits(calls=6,period=20)
 def option_lookup(symbol,strike_price_proximity=3):
     logging.debug("OPTION LOOKUP FOR %s" % symbol)
     def filter_contracts(olist,stock_price,spp):
@@ -95,7 +95,7 @@ def option_lookup(symbol,strike_price_proximity=3):
     return option_chain_lookup
 
 @sleep_and_retry
-@limits(calls=10,period=60)
+@limits(calls=6,period=20)
 def stock_quote(symbol):
     url = UrlHelper.route('lookup')
     session = Session()
@@ -157,7 +157,7 @@ class CancelOrderWrapper(object):
     def __init__(self,link):
         self.link = link
     @sleep_and_retry
-    @limits(calls=3,period=10)
+    @limits(calls=3,period=20)
     def wrap_cancel(self):
         url = "%s%s" % (UrlHelper.route('opentrades'),self.link)
         print(url)
@@ -168,7 +168,7 @@ class CancelOrderWrapper(object):
 class Parsers(object):
     @staticmethod
     @sleep_and_retry
-    @limits(calls=6,period=30)
+    @limits(calls=6,period=20)
     def get_open_trades(portfolio_tree):
         session = Session()
         open_trades_resp = session.get(UrlHelper.route('opentrades'))
@@ -182,6 +182,7 @@ class Parsers(object):
             'order_date': 'td[3]/text()',
             'quantity': 'td[6]/text()',
             'order_price': 'td[7]/text()',
+            'trade_type' : 'td[4]/text()'
         
         }
 
@@ -213,7 +214,7 @@ class Parsers(object):
 
     @staticmethod
     @sleep_and_retry
-    @limits(calls=6,period=30)
+    @limits(calls=6,period=20)
     def get_portfolio():
         session = Session()
         portfolio_response = session.get(UrlHelper.route('portfolio'))

@@ -10,6 +10,7 @@ with open('credentials.json') as ifh:
 client = InvestopediaApi(credentials)
 
 p = client.portfolio
+
 print("account value: %s" % p.account_value)
 print("cash: %s" % p.cash)
 print("buying power: %s" % p.buying_power)
@@ -18,6 +19,8 @@ print("annual return pct: %s" % p.annual_return_pct)
 # get a quote
 quote = client.get_stock_quote('GOOG')
 print(quote.__dict__)
+
+
 
 # option chain lookup
 lookup = client.get_option_chain('MSFT')
@@ -31,6 +34,7 @@ for chain in lookup.search_by_daterange(datetime.datetime.now(), datetime.dateti
     for put in chain.puts:
         print(put)
     print("--------------------------------")
+
 
 option_contract = lookup.get('MSFT2217R80')
 # order_type, duration, and send_email default to Market, Good Till Cancelled, and True respectively
@@ -74,8 +78,12 @@ for pos in short_positions:
 
     # This gets a quote with addtional info like volume
     quote = pos.quote
-    print(quote.__dict__)
-    print("---------------------")
+
+    try:
+        print(quote.__dict__)
+        print("---------------------")
+    except Exception as e:
+        print("bad quote for %s" % pos.symbol)
 
 for pos in my_options:
     print("--------------------")
@@ -144,3 +152,11 @@ trade_info = trade1.validate()
 if trade1.validated:
     print(trade_info)
     trade1.execute()
+
+# View open orders / pending trades
+client.refresh_portfolio()
+open_orders = client.open_orders
+
+# cancel the first open order / pending trade
+open_orders[0].cancel()
+client.refresh_portfolio()

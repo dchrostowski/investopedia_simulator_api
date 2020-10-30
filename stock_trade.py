@@ -24,7 +24,7 @@ class StockTrade(Trade):
                          trade_type, order_type, duration, send_email)
 
     @sleep_and_retry
-    @limits(calls=6, period=30)
+    @limits(calls=6, period=20)
     def _get_max_shares(self):
         uri = self.base_url
         form_data = {
