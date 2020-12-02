@@ -114,7 +114,9 @@ def stock_quote(symbol):
         'last': '//table[@id="Table2"]/tbody/tr[1]/th[contains(text(),"Last")]/following-sibling::td/text()',
         'change': '//table[@id="Table2"]/tbody/tr[2]/th[contains(text(),"Change")]/following-sibling::td/text()',
         'change_percent': '//table[@id="Table2"]/tbody/tr[3]/th[contains(text(),"% Change")]/following-sibling::td/text()',
-        'volume': '//table[@id="Table2"]/tbody/tr[4]/th[contains(text(),"Volume")]/following-sibling::td/text()'
+        'volume': '//table[@id="Table2"]/tbody/tr[4]/th[contains(text(),"Volume")]/following-sibling::td/text()',
+        'days_high': '//table[@id="Table2"]/tbody/tr[5]/th[contains(text(),"Day\'s High")]/following-sibling::td/text()',
+        'days_low': '//table[@id="Table2"]/tbody/tr[6]/th[contains(text(),"Day\'s Low")]/following-sibling::td/text()'
     }
 
     stock_quote_data = {}

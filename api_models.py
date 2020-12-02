@@ -284,7 +284,9 @@ class StockQuote(object):
         last: Decimal,
         change: Decimal,
         change_percent: Decimal,
-        volume: int
+        volume: int,
+        days_high: Decimal,
+        days_low: Decimal
 
     ):
         self.symbol = symbol
@@ -294,3 +296,6 @@ class StockQuote(object):
         self.change = change
         self.change_percent = change_percent
         self.volume = volume
+        self.days_high = days_high
+        self.days_low = days_low
+        self.open = self.last - self.change
