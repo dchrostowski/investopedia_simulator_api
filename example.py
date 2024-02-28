@@ -9,12 +9,12 @@ with open('credentials.json') as ifh:
 # credentials = {"username": "you@example.org", "password": "yourpassword" }
 client = InvestopediaApi(credentials)
 
-# p = client.portfolio
+p = client.portfolio
 
-# print("account value: %s" % p.account_value)
-# print("cash: %s" % p.cash)
-# print("buying power: %s" % p.buying_power)
-# print("annual return pct: %s" % p.annual_return_pct)
+print("account value: %s" % p.account_value)
+print("cash: %s" % p.cash)
+print("buying power: %s" % p.buying_power)
+print("annual return pct: %s" % p.annual_return_pct)
 
 # # get a quote
 # quote = client.get_stock_quote('GOOG')

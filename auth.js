@@ -45,18 +45,18 @@ const waitFor = async (timeToWait) => {
         await usernameField.type(username)
         await passwordField.type(password)
 
-        await page.screenshot({path:'./ss1.png'})
+        await page.screenshot()
         
 
         await signInButton.click()
 
         await waitFor(3000)
-        await page.screenshot({path:'./ss2.png'})
+        await page.screenshot()
 
         const passwordField2 = await page.waitForSelector('::-p-xpath(//input[@id="password"])', {timeout: 3000})
         passwordField2.type(password)
 
-        await page.screenshot({path:'./ss3.png'})
+        await page.screenshot()
 
         page.on('request', request => {
             const url = request.url()

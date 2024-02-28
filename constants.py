@@ -1,6 +1,8 @@
 from decimal import Decimal
 
 BASE_URL = 'https://www.investopedia.com/simulator'
+API_URL = 'https://api.investopedia.com/simulator/graphql'
+
 PATHS = {
     'portfolio': '/portfolio/',
     'games': '/game',

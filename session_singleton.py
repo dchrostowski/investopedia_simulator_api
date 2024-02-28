@@ -6,6 +6,7 @@ import warnings
 import re
 import json
 from IPython import embed
+from constants import API_URL
 
 class NotLoggedInException(Exception):
     pass
@@ -19,8 +20,10 @@ class Session:
     class __Session(requests.Session):
         def __init__(self, *args, **kwargs):
             super().__int__(*args, **kwargs)
+            self.url='https://api.investopedia.com/simulator/graphql'
 
     __session = None
+    
 
     def __new__(cls):
         if not cls.is_logged_in():
@@ -68,13 +71,11 @@ class Session:
                 cls.__session = requests.Session()
                 cls.__session.headers.update(authorization_header)
                 cls.__session.headers.update({'Content-Type':'application/json'})
-                print(cls.__session.headers)
+                
 
-        url = 'https://api.investopedia.com/simulator/graphql'
-        gl_query = {"operationName":"ReadUserId","variables":{},"query":"query ReadUserId {\n  readUser {\n    ... on UserErrorResponse {\n      errorMessages\n      __typename\n    }\n    ... on User {\n      id\n      __typename\n    }\n    __typename\n  }\n}\n"}
-        resp = cls.__session.post(url,data=json.dumps(gl_query))
-        print(resp)
         
+        gl_query = {"operationName":"ReadUserId","variables":{},"query":"query ReadUserId {\n  readUser {\n    ... on UserErrorResponse {\n      errorMessages\n      __typename\n    }\n    ... on User {\n      id\n      __typename\n    }\n    __typename\n  }\n}\n"}
+        resp = cls.__session.post(API_URL,data=json.dumps(gl_query))
 
         if not resp.ok:
             cls.__session = None

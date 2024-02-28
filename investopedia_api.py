@@ -11,7 +11,7 @@ from utils import TaskQueue, validate_and_execute_trade
 class InvestopediaApi(object):
     def __init__(self, credentials):
         Session.login(credentials)
-        #self.portfolio = Parsers.get_portfolio()
+        self.portfolio = Parsers.get_portfolio()
         #self.open_orders = self.portfolio.open_orders
 
     class TradeQueue(TaskQueue):

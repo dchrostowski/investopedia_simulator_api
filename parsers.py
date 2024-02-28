@@ -1,7 +1,7 @@
 from api_models import Position,LongPosition, ShortPosition, OptionPosition
 from api_models import Portfolio,StockPortfolio,ShortPortfolio,OptionPortfolio,OpenOrder
 from api_models import StockQuote
-from constants import OPTIONS_QUOTE_URL
+from constants import OPTIONS_QUOTE_URL, API_URL
 from options import OptionChainLookup, OptionChain, OptionContract
 from session_singleton import Session
 from utils import UrlHelper, coerce_value
@@ -14,6 +14,7 @@ import datetime
 from ratelimit import limits,sleep_and_retry
 from decimal import Decimal
 import logging
+from IPython import embed
 
 @sleep_and_retry
 @limits(calls=6,period=20)
@@ -171,46 +172,47 @@ class Parsers(object):
     @staticmethod
     @sleep_and_retry
     @limits(calls=6,period=20)
-    def get_open_trades(portfolio_tree):
-        session = Session()
-        open_trades_resp = session.get(UrlHelper.route('opentrades'))
-        open_tree = html.fromstring(open_trades_resp.text)
-        open_trade_rows = open_tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
-
-        ot_xpath_map = {
-            'order_id': 'td[1]/text()',
-            'symbol': 'td[5]/a/text()',
-            'cancel_fn': 'td[2]/a/@href',
-            'order_date': 'td[3]/text()',
-            'quantity': 'td[6]/text()',
-            'order_price': 'td[7]/text()',
-            'trade_type' : 'td[4]/text()'
-        
-        }
-
+    def get_open_trades():
         open_orders = []
+        session = Session()
+        # open_trades_resp = session.get(UrlHelper.route('opentrades'))
+        # open_tree = html.fromstring(open_trades_resp.text)
+        # open_trade_rows = open_tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
 
-        for tr in open_trade_rows:
-            fon = lambda x: x[0] if len(x)> 0 else None
-            open_order_dict = {k:fon(tr.xpath(v)) for k,v in ot_xpath_map.items()}
-            symbol_match = re.search(r'^([^\.\d]+)',open_order_dict['symbol'])
-            if symbol_match:
-                open_order_dict['symbol'] = symbol_match.group(1)
-            if open_order_dict['order_price'] == 'n/a':
-                oid = open_order_dict['order_id']
-                quantity = int(open_order_dict['quantity'])
-                pxpath = '//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]//span[contains(@id,"%s")]/ancestor::tr/td[5]/span/text()' % oid
-                cancel_link = open_order_dict['cancel_fn']
-                wrapper = CancelOrderWrapper(cancel_link)
-                open_order_dict['cancel_fn'] = wrapper.wrap_cancel
-                try:
-                    current_price = coerce_value(fon(portfolio_tree.xpath(pxpath)),Decimal)
-                    open_order_dict['order_price'] = current_price * quantity
-                except Exception as e:
-                    warn("Unable to parse open trade value for %s" % open_order_dict['symbol'])
-                    open_order_dict['order_price'] = 0
+        # ot_xpath_map = {
+        #     'order_id': 'td[1]/text()',
+        #     'symbol': 'td[5]/a/text()',
+        #     'cancel_fn': 'td[2]/a/@href',
+        #     'order_date': 'td[3]/text()',
+        #     'quantity': 'td[6]/text()',
+        #     'order_price': 'td[7]/text()',
+        #     'trade_type' : 'td[4]/text()'
+        
+        # }
+
+        # open_orders = []
+
+        # for tr in open_trade_rows:
+        #     fon = lambda x: x[0] if len(x)> 0 else None
+        #     open_order_dict = {k:fon(tr.xpath(v)) for k,v in ot_xpath_map.items()}
+        #     symbol_match = re.search(r'^([^\.\d]+)',open_order_dict['symbol'])
+        #     if symbol_match:
+        #         open_order_dict['symbol'] = symbol_match.group(1)
+        #     if open_order_dict['order_price'] == 'n/a':
+        #         oid = open_order_dict['order_id']
+        #         quantity = int(open_order_dict['quantity'])
+        #         pxpath = '//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]//span[contains(@id,"%s")]/ancestor::tr/td[5]/span/text()' % oid
+        #         cancel_link = open_order_dict['cancel_fn']
+        #         wrapper = CancelOrderWrapper(cancel_link)
+        #         open_order_dict['cancel_fn'] = wrapper.wrap_cancel
+        #         try:
+        #             current_price = coerce_value(fon(portfolio_tree.xpath(pxpath)),Decimal)
+        #             open_order_dict['order_price'] = current_price * quantity
+        #         except Exception as e:
+        #             warn("Unable to parse open trade value for %s" % open_order_dict['symbol'])
+        #             open_order_dict['order_price'] = 0
                 
-                open_orders.append(OpenOrder(**open_order_dict))
+        #         open_orders.append(OpenOrder(**open_order_dict))
         return open_orders
 
 
@@ -218,32 +220,31 @@ class Parsers(object):
     @sleep_and_retry
     @limits(calls=6,period=20)
     def get_portfolio():
+
+        portfolio_summary_query = {"operationName":"PortfolioSummary","variables":{"portfolioId":"10042674"},"query":"query PortfolioSummary($portfolioId: String!) {\n  readPortfolio(portfolioId: $portfolioId) {\n    ... on Portfolio {\n      summary {\n        accountValue\n        annualReturn\n        buyingPower\n        cash\n        dayGainDollar\n        dayGainPercent\n        __typename\n      }\n      __typename\n    }\n    ... on PortfolioErrorResponse {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"}
         session = Session()
-        portfolio_response = session.get(UrlHelper.route('portfolio'))
-        portfolio_tree = html.fromstring(portfolio_response.text)
+        resp = session.post(API_URL,json.dumps(portfolio_summary_query))
+        portfolio_response = json.loads(resp.text)
+        portfolio_data = portfolio_response['data']['readPortfolio']['summary']
+        
+        portfolio_args = {}
+        portfolio_args['account_value'] = portfolio_data['accountValue']
+        portfolio_args['buying_power'] = portfolio_data['buyingPower']
+        portfolio_args['cash'] = portfolio_data['cash']
+        portfolio_args['annual_return_pct'] = portfolio_data['annualReturn']
 
         stock_portfolio = StockPortfolio()
         short_portfolio = ShortPortfolio()
         option_portfolio = OptionPortfolio()
 
-        Parsers.parse_and_sort_positions(portfolio_tree,stock_portfolio,short_portfolio,option_portfolio)
+        portfolio_args['open_orders'] = Parsers.get_open_trades()
 
-        xpath_prefix = '//div[@id="infobar-container"]/div[@class="infobar-title"]/p'
-
-        xpath_map = {
-            'account_value': '/strong[contains(text(),"Account Value")]/following-sibling::span/text()',
-            'buying_power':  '/strong[contains(text(),"Buying Power")]/following-sibling::span/text()',
-            'cash':          '/strong[contains(text(),"Cash")]/following-sibling::span/text()',
-            'annual_return_pct': '/strong[contains(text(),"Annual Return")]/following-sibling::span/text()',
-        }
-
-        xpath_get = lambda xpth: portfolio_tree.xpath("%s%s" % (xpath_prefix,xpth))[0]
-
-        portfolio_args = {k: xpath_get(v)  for k,v in xpath_map.items()}
+        #portfolio_args = {k: xpath_get(v)  for k,v in xpath_map.items()}
+        
         portfolio_args['stock_portfolio'] = stock_portfolio
         portfolio_args['short_portfolio'] = short_portfolio
         portfolio_args['option_portfolio'] = option_portfolio
-        portfolio_args['open_orders'] = Parsers.get_open_trades(portfolio_tree)
+        #portfolio_args['open_orders'] = Parsers.get_open_trades(portfolio_tree)
         for order in portfolio_args['open_orders']:
             print(order.__dict__)
         return Portfolio(**portfolio_args)
