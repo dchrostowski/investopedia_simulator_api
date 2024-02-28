@@ -34,36 +34,29 @@ const waitFor = async (timeToWait) => {
         await page.goto(link, {waitUntil:'load',timeout: 10000})
         //await page.waitForXPath('//span[contains(text(),"LOG IN")]', {timeout: 3000})
         const loginButton = await page.waitForSelector('::-p-xpath(//span[contains(text(),"LOG IN")])', {timeout: 3000})
-
-        const cookies1 = await page.cookies()
-        //console.log(cookies1)
         
-        console.log(loginButton)
         await loginButton.click()
 
         const usernameField = await page.waitForSelector('::-p-xpath(//input[@id="username"])', {timeout: 3000})
         const passwordField = await page.waitForSelector('::-p-xpath(//input[@id="password"])', {timeout: 3000})
         const signInButton = await page.waitForSelector('::-p-xpath(//input[@id="login"])', {timeout: 3000})
 
-        const cookies2 = await page.cookies()
-        //console.log("cookies2:")
-        //console.log(cookies2)
-
-        console.log(usernameField)
-        console.log(passwordField)
 
         await usernameField.type(username)
-        
-
-        
         await passwordField.type(password)
+
+        await page.screenshot({path:'./ss1.png'})
         
 
         await signInButton.click()
+
         await waitFor(3000)
+        await page.screenshot({path:'./ss2.png'})
 
         const passwordField2 = await page.waitForSelector('::-p-xpath(//input[@id="password"])', {timeout: 3000})
         passwordField2.type(password)
+
+        await page.screenshot({path:'./ss3.png'})
 
         page.on('request', request => {
             const url = request.url()
@@ -80,6 +73,8 @@ const waitFor = async (timeToWait) => {
 
         const signInButton2 = await page.waitForSelector('::-p-xpath(//input[@id="login"])', {timeout: 3000})
         await signInButton2.click()
+        
+        await page.waitForSelector('::-p-xpath(//div[contains(@class,"v-main__wrap")])')
 
     }
     catch(err) {

@@ -4,12 +4,16 @@ import requests
 from lxml import html
 import warnings
 import re
+import json
+from IPython import embed
 
 class NotLoggedInException(Exception):
     pass
 
 class InvestopediaAuthException(Exception):
     pass
+
+import os
 
 class Session:
     class __Session(requests.Session):
@@ -33,7 +37,7 @@ class Session:
 
     @classmethod
     def is_logged_in(cls):
-        if cls.__session is not None and cls.__session.cookies.get('AWSALBCORS') is not None:
+        if cls.__session is not None and cls.__session.headers.get('Authorization') is not None:
             return True
 
         return False
@@ -49,34 +53,35 @@ class Session:
                 "You are already logged in.  If you want to logout call Session.logout().  Returning session")
             return cls.__session
         
-        url = 'https://www.investopedia.com/auth/realms/investopedia/shopify-auth/inv-simulator/login?&redirectUrl=https%3A%2F%2Fwww.investopedia.com%2Fauth%2Frealms%2Finvestopedia%2Fprotocol%2Fopenid-connect%2Fauth%3Fresponse_type%3Dcode%26approval_prompt%3Dauto%26redirect_uri%3Dhttps%253A%252F%252Fwww.investopedia.com%252Fsimulator%252Fhome.aspx%26client_id%3Dinv-simulator-conf'
-        cls.__session = requests.Session()
-        resp = cls.__session.get(url)
+        if os.path.exists("auth.json"):
+            os.remove('auth.json')
+        os.system("npm install")
+        print("Logging into Investopedia...")
+        os.system("node ./auth.js %s %s" % (credentials['username'],credentials['password']))
+
+        if not os.path.exists("auth.json"):
+            raise InvestopediaAuthException("Unable to login with credentials '%s', '%s'" % (credentials['username'],credentials['password']))
+
+        else:
+            with open('./auth.json','r') as ifh:
+                authorization_header = json.loads(ifh.readline())
+                cls.__session = requests.Session()
+                cls.__session.headers.update(authorization_header)
+                cls.__session.headers.update({'Content-Type':'application/json'})
+                print(cls.__session.headers)
+
+        url = 'https://api.investopedia.com/simulator/graphql'
+        gl_query = {"operationName":"ReadUserId","variables":{},"query":"query ReadUserId {\n  readUser {\n    ... on UserErrorResponse {\n      errorMessages\n      __typename\n    }\n    ... on User {\n      id\n      __typename\n    }\n    __typename\n  }\n}\n"}
+        resp = cls.__session.post(url,data=json.dumps(gl_query))
+        print(resp)
         
-        tree = html.fromstring(resp.text)
-        script_with_url = tree.xpath('//script/text()')[0]
-
-        redirect_url = re.search(r'REDIRECT_URL\s=\s"([^"]+)"', script_with_url).group(1)
-        resp = cls.__session.get(redirect_url.encode('utf-8').decode('unicode_escape'))
-        tree = html.fromstring(resp.text)
-        post_url = tree.xpath('//form/@action')[0]
-        payload = credentials
-        resp = cls.__session.post(post_url,data=payload)
-
-        url = UrlHelper.route('home')
-        resp = cls.__session.get(url)
 
         if not resp.ok:
             cls.__session = None
             raise InvestopediaAuthException(
                 "Got status code %s when fetching %s" % (resp.status_code, url))
 
-        tree = html.fromstring(resp.text)
-        sign_out_link = tree.xpath(
-            '//div[@class="left-nav"]//ul/li/a[text()="Sign Out"]')
-        if len(sign_out_link) < 1:
-            warnings.warn(
-                "Could not locate sign out link on home page.  Session may not have authenticated.")
+        
 
         return cls.__session
 
