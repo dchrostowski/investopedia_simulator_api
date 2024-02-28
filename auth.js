@@ -81,48 +81,6 @@ const waitFor = async (timeToWait) => {
         const signInButton2 = await page.waitForSelector('::-p-xpath(//input[@id="login"])', {timeout: 3000})
         await signInButton2.click()
 
-        
-        
-
-
-
-
-        //await page.waitForSelector('::-p-xpath(//span[@class="v-btn__content"])', {timeout:10000})
-
-        // await page.screenshot({'path':'./ss2.png'})
-
-
-
-        // const text = await page.evaluate(el => el.textContent, elHandle[0])
-        // console.log(`got score: ${text} `)
-        // const score = text.trim().replace('/100','')
-        // const balancesheetScore = await pullScore(page, "Financial Strength")
-        // const profitabilityScore = await pullScore(page, "Profitability Rank")
-        // const growthScore = await pullScore(page, "Growth Rank")
-        // const valueScore = await pullScore(page, "GF Value Rank")
-        // const momentumScore = await pullScore(page, "Momentum Rank")
-
-
-        // const priceEl = await page.$x('//div[@class="m-t-xs"]/span[1]')
-        // const priceText = await page.evaluate(el => el.textContent, priceEl[0])
-        // const price = priceText.trim().replace('$','').trim()
-
-        // console.log(`Data for ${symbol}:`)
-        // const item = {
-        //     'symbol': symbol,
-        //     'price_at_rating': price,
-        //     'balancesheet': balancesheetScore,
-        //     'profitability': profitabilityScore,
-        //     'growth': growthScore,
-        //     'value': valueScore,
-        //     'momentum': momentumScore,
-        //     'quant': score
-        // }
-
-
-        // console.log(item)
-        // fs.writeFileSync(`gurufocus_${symbol}.json`, JSON.stringify(item))
-
     }
     catch(err) {
         console.error(err)
