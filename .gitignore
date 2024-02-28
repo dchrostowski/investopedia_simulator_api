@@ -1,4 +1,6 @@
 credentials.json
+auth.json
+node_modules/
 __pycache__
 
 # Compiled source #
