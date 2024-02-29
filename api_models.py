@@ -17,7 +17,6 @@ class OpenOrder(object):
         self: object,
         order_id: int,
         cancel_fn: object,
-        order_date: str,
         symbol: str,
         quantity: int,
         order_price: Decimal,
@@ -27,7 +26,6 @@ class OpenOrder(object):
         self.cancel_fn = cancel_fn
         # strptime with %-m/%-d/%Y %-I:%M:%S %p SHOULD WORK
         # because it looks like this: 4/1/2019 11:10:35 PM
-        self.order_date = date_regex(order_date)  # fuck it, we'll do it regex.
         self.trade_type = trade_type
         self.symbol = symbol
         self.quantity = quantity

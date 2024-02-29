@@ -31,7 +31,7 @@ const waitFor = async (timeToWait) => {
         await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36');
         let authHeader = null
 
-        await page.goto(link, {waitUntil:'load',timeout: 10000})
+        await page.goto(link, {waitUntil:'load',timeout: 15000})
         //await page.waitForXPath('//span[contains(text(),"LOG IN")]', {timeout: 3000})
         const loginButton = await page.waitForSelector('::-p-xpath(//span[contains(text(),"LOG IN")])', {timeout: 3000})
         

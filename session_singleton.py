@@ -7,6 +7,7 @@ import re
 import json
 from IPython import embed
 from constants import API_URL
+from queries import Queries
 
 class NotLoggedInException(Exception):
     pass
@@ -74,8 +75,7 @@ class Session:
                 
 
         
-        gl_query = {"operationName":"ReadUserId","variables":{},"query":"query ReadUserId {\n  readUser {\n    ... on UserErrorResponse {\n      errorMessages\n      __typename\n    }\n    ... on User {\n      id\n      __typename\n    }\n    __typename\n  }\n}\n"}
-        resp = cls.__session.post(API_URL,data=json.dumps(gl_query))
+        resp = cls.__session.post(API_URL,data=Queries.read_user_id())
 
         if not resp.ok:
             cls.__session = None

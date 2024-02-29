@@ -16,6 +16,9 @@ print("cash: %s" % p.cash)
 print("buying power: %s" % p.buying_power)
 print("annual return pct: %s" % p.annual_return_pct)
 
+print("open orders:")
+print(p.open_orders)
+
 # # get a quote
 # quote = client.get_stock_quote('GOOG')
 # print(quote.__dict__)

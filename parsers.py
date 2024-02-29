@@ -1,6 +1,7 @@
 from api_models import Position,LongPosition, ShortPosition, OptionPosition
 from api_models import Portfolio,StockPortfolio,ShortPortfolio,OptionPortfolio,OpenOrder
 from api_models import StockQuote
+from queries import Queries
 from constants import OPTIONS_QUOTE_URL, API_URL
 from options import OptionChainLookup, OptionChain, OptionContract
 from session_singleton import Session
@@ -157,16 +158,13 @@ class OptionLookupWrapper(object):
         return option_lookup(self.underlying)[self.contract_symbol]
 
 class CancelOrderWrapper(object):
-    def __init__(self,link):
-        self.link = link
+    def __init__(self,order_id):
+        self.order_id = order_id
     @sleep_and_retry
     @limits(calls=3,period=20)
     def wrap_cancel(self):
-        url = "%s%s" % (UrlHelper.route('opentrades'),self.link)
-        print(url)
         session = Session()
-        session.get(url)
-        
+        session.post(API_URL,Queries.cancel_order(self.order_id))        
 
 class Parsers(object):
     @staticmethod
@@ -175,6 +173,35 @@ class Parsers(object):
     def get_open_trades():
         open_orders = []
         session = Session()
+
+        open_option_trade_query = json.dumps({"operationName":"PendingOptionTrades","variables":{"portfolioId":"10042674","holdingType":"OPTIONS"},"query":"query PendingOptionTrades($portfolioId: String!) {\n  readPortfolio(portfolioId: $portfolioId) {\n    ... on PortfolioErrorResponse {\n      errorMessages\n      __typename\n    }\n    ... on Portfolio {\n      holdings(type: OPTIONS) {\n        ... on HoldingsErrorResponse {\n          errorMessages\n          __typename\n        }\n        ... on CategorizedHoldingsErrorResponse {\n          errorMessages\n          __typename\n        }\n        ... on CategorizedOptionHoldings {\n          pendingTrades {\n            option {\n              ... on Option {\n                isPut\n                expirationDate\n                lastPrice\n                strikePrice\n                stock {\n                  ... on Stock {\n                    symbol\n                    technical {\n                      lastPrice\n                      __typename\n                    }\n                    __typename\n                  }\n                  __typename\n                }\n                __typename\n              }\n              __typename\n            }\n            symbol\n            transactionTypeDescription\n            orderPriceDescription\n            tradeId\n            action\n            cancelDate\n            quantity\n            quantityType\n            transactionType\n            limit {\n              limit\n              stop\n              trailingStop {\n                percentage\n                price\n                __typename\n              }\n              __typename\n            }\n            __typename\n          }\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n"})
+        open_short_trade_query = json.dumps({"operationName":"PendingStockTrades","variables":{"portfolioId":"10042674","holdingType":"SHORTS"},"query":"query PendingStockTrades($portfolioId: String!, $holdingType: HoldingType!) {\n  readPortfolio(portfolioId: $portfolioId) {\n    ... on PortfolioErrorResponse {\n      errorMessages\n      __typename\n    }\n    ... on Portfolio {\n      holdings(type: $holdingType) {\n        ... on CategorizedStockHoldings {\n          pendingTrades {\n            stock {\n              ... on Stock {\n                description\n                technical {\n                  lastPrice\n                  __typename\n                }\n                __typename\n              }\n              __typename\n            }\n            symbol\n            transactionTypeDescription\n            orderPriceDescription\n            tradeId\n            action\n            cancelDate\n            quantity\n            quantityType\n            transactionType\n            limit {\n              limit\n              stop\n              trailingStop {\n                percentage\n                price\n                __typename\n              }\n              __typename\n            }\n            __typename\n          }\n          __typename\n        }\n        ... on HoldingsErrorResponse {\n          errorMessages\n          __typename\n        }\n        ... on CategorizedHoldingsErrorResponse {\n          errorMessages\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n"})
+
+        open_stock_trades_response = json.loads(session.post(API_URL, data=Queries.open_stock_trades()).text)
+        open_stock_trades = open_stock_trades_response['data']['readPortfolio']['holdings']['pendingTrades']
+
+        for open_stock_trade in open_stock_trades:
+
+            if open_stock_trade['action'] == 'n/a':
+                continue
+
+            order_dict = {
+                'order_id': open_stock_trade['tradeId'],
+                'symbol': open_stock_trade['symbol'],
+                'quantity': open_stock_trade['quantity'],
+                'order_price': open_stock_trade['orderPriceDescription'],
+                'trade_type': open_stock_trade['transactionTypeDescription']  
+            }
+
+            if order_dict['order_price'] == 'n/a':
+                order_dict['order_price'] = open_stock_trade['stock']['technical']['lastPrice']
+
+            wrapper = CancelOrderWrapper(order_dict['order_id'])
+            order_dict['cancel_fn'] = wrapper.wrap_cancel
+
+
+            open_orders.append(OpenOrder(**order_dict))
+        embed()
         # open_trades_resp = session.get(UrlHelper.route('opentrades'))
         # open_tree = html.fromstring(open_trades_resp.text)
         # open_trade_rows = open_tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
