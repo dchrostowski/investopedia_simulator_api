@@ -1,6 +1,7 @@
 from investopedia_api import InvestopediaApi, TradeExceedsMaxSharesException
 import json
 import datetime
+from IPython import embed
 
 credentials = {}
 with open('credentials.json') as ifh:
@@ -18,6 +19,8 @@ print("annual return pct: %s" % p.annual_return_pct)
 
 print("open orders:")
 print(p.open_orders)
+
+embed()
 
 # # get a quote
 # quote = client.get_stock_quote('GOOG')

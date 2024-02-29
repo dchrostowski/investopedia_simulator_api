@@ -58,16 +58,23 @@ const waitFor = async (timeToWait) => {
 
         await page.screenshot()
 
-        page.on('request', request => {
-            const url = request.url()
-            if(url === 'https://api.investopedia.com/simulator/graphql' && authHeader === null) {
-                const requestHeaders = request.headers()
-                if(requestHeaders?.authorization) {
-                    authHeader = {'Authorization': requestHeaders['authorization']}
-                    console.log("successfully extracted auth token.")
-                    fs.writeFileSync(`./auth.json`, JSON.stringify(authHeader))
-                }
+        // page.on('request', request => {
+        //     const url = request.url()
+        //     if(url === 'https://api.investopedia.com/simulator/graphql' && authHeader === null) {
+        //         const requestHeaders = request.headers()
+        //         if(requestHeaders?.authorization) {
+        //             authHeader = {'Authorization': requestHeaders['authorization']}
+        //             console.log("successfully extracted auth token.")
+        //             fs.writeFileSync(`./auth.json`, JSON.stringify(authHeader))
+        //         }
                 
+        //     }
+        // })
+
+        page.on('response', async response => {
+            if(response.url() === 'https://www.investopedia.com/auth/realms/investopedia/protocol/openid-connect/token') {
+                const response_json = await response.json()
+                fs.writeFileSync('./auth.json',JSON.stringify(response_json))
             }
         })
 

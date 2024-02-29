@@ -170,38 +170,47 @@ class Parsers(object):
     @staticmethod
     @sleep_and_retry
     @limits(calls=6,period=20)
-    def get_open_trades():
+    def get_open_trades(portfolio_id):
         open_orders = []
         session = Session()
 
-        open_option_trade_query = json.dumps({"operationName":"PendingOptionTrades","variables":{"portfolioId":"10042674","holdingType":"OPTIONS"},"query":"query PendingOptionTrades($portfolioId: String!) {\n  readPortfolio(portfolioId: $portfolioId) {\n    ... on PortfolioErrorResponse {\n      errorMessages\n      __typename\n    }\n    ... on Portfolio {\n      holdings(type: OPTIONS) {\n        ... on HoldingsErrorResponse {\n          errorMessages\n          __typename\n        }\n        ... on CategorizedHoldingsErrorResponse {\n          errorMessages\n          __typename\n        }\n        ... on CategorizedOptionHoldings {\n          pendingTrades {\n            option {\n              ... on Option {\n                isPut\n                expirationDate\n                lastPrice\n                strikePrice\n                stock {\n                  ... on Stock {\n                    symbol\n                    technical {\n                      lastPrice\n                      __typename\n                    }\n                    __typename\n                  }\n                  __typename\n                }\n                __typename\n              }\n              __typename\n            }\n            symbol\n            transactionTypeDescription\n            orderPriceDescription\n            tradeId\n            action\n            cancelDate\n            quantity\n            quantityType\n            transactionType\n            limit {\n              limit\n              stop\n              trailingStop {\n                percentage\n                price\n                __typename\n              }\n              __typename\n            }\n            __typename\n          }\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n"})
-        open_short_trade_query = json.dumps({"operationName":"PendingStockTrades","variables":{"portfolioId":"10042674","holdingType":"SHORTS"},"query":"query PendingStockTrades($portfolioId: String!, $holdingType: HoldingType!) {\n  readPortfolio(portfolioId: $portfolioId) {\n    ... on PortfolioErrorResponse {\n      errorMessages\n      __typename\n    }\n    ... on Portfolio {\n      holdings(type: $holdingType) {\n        ... on CategorizedStockHoldings {\n          pendingTrades {\n            stock {\n              ... on Stock {\n                description\n                technical {\n                  lastPrice\n                  __typename\n                }\n                __typename\n              }\n              __typename\n            }\n            symbol\n            transactionTypeDescription\n            orderPriceDescription\n            tradeId\n            action\n            cancelDate\n            quantity\n            quantityType\n            transactionType\n            limit {\n              limit\n              stop\n              trailingStop {\n                percentage\n                price\n                __typename\n              }\n              __typename\n            }\n            __typename\n          }\n          __typename\n        }\n        ... on HoldingsErrorResponse {\n          errorMessages\n          __typename\n        }\n        ... on CategorizedHoldingsErrorResponse {\n          errorMessages\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n"})
+        
+        open_stock_trades_response = json.loads(session.post(API_URL, data=Queries.open_stock_trades(portfolio_id)).text)
+        open_option_trades_response = json.loads(session.post(API_URL, data=Queries.open_option_trades(portfolio_id)).text)
+        open_short_trades_response = json.loads(session.post(API_URL, data=Queries.open_short_trades(portfolio_id)).text)
 
-        open_stock_trades_response = json.loads(session.post(API_URL, data=Queries.open_stock_trades()).text)
-        open_stock_trades = open_stock_trades_response['data']['readPortfolio']['holdings']['pendingTrades']
+        all_open_trades_responses = [open_stock_trades_response, open_option_trades_response, open_short_trades_response]
 
-        for open_stock_trade in open_stock_trades:
+        for open_trade_resp in all_open_trades_responses:
 
-            if open_stock_trade['action'] == 'n/a':
-                continue
+            open_trades = open_trade_resp['data']['readPortfolio']['holdings']['pendingTrades']
+            
+            for open_trade in open_trades:
+                if open_trade['cancelDate'] is not None:
+                    continue
+            
+                order_dict = {
+                    'order_id': open_trade['tradeId'],
+                    'symbol': open_trade['symbol'],
+                    'quantity': open_trade['quantity'],
+                    'order_price': open_trade['orderPriceDescription'],
+                    'trade_type': open_trade['transactionTypeDescription']  
+                }
 
-            order_dict = {
-                'order_id': open_stock_trade['tradeId'],
-                'symbol': open_stock_trade['symbol'],
-                'quantity': open_stock_trade['quantity'],
-                'order_price': open_stock_trade['orderPriceDescription'],
-                'trade_type': open_stock_trade['transactionTypeDescription']  
-            }
+                
 
-            if order_dict['order_price'] == 'n/a':
-                order_dict['order_price'] = open_stock_trade['stock']['technical']['lastPrice']
+                if order_dict['order_price'] == 'n/a':
+                    try:
+                        order_dict['order_price'] = open_trade['stock']['technical']['lastPrice'] * -1
+                    except KeyError as e:
+                        order_dict['order_price'] = open_trade['option']['lastPrice'] * -1
 
-            wrapper = CancelOrderWrapper(order_dict['order_id'])
-            order_dict['cancel_fn'] = wrapper.wrap_cancel
+                wrapper = CancelOrderWrapper(order_dict['order_id'])
+                order_dict['cancel_fn'] = wrapper.wrap_cancel
 
 
-            open_orders.append(OpenOrder(**order_dict))
-        embed()
+                open_orders.append(OpenOrder(**order_dict))
+        
         # open_trades_resp = session.get(UrlHelper.route('opentrades'))
         # open_tree = html.fromstring(open_trades_resp.text)
         # open_trade_rows = open_tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
@@ -246,15 +255,13 @@ class Parsers(object):
     @staticmethod
     @sleep_and_retry
     @limits(calls=6,period=20)
-    def get_portfolio():
-
-        portfolio_summary_query = {"operationName":"PortfolioSummary","variables":{"portfolioId":"10042674"},"query":"query PortfolioSummary($portfolioId: String!) {\n  readPortfolio(portfolioId: $portfolioId) {\n    ... on Portfolio {\n      summary {\n        accountValue\n        annualReturn\n        buyingPower\n        cash\n        dayGainDollar\n        dayGainPercent\n        __typename\n      }\n      __typename\n    }\n    ... on PortfolioErrorResponse {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"}
+    def generate_portfolio(portfolio_id,game_id,game_name):
         session = Session()
-        resp = session.post(API_URL,json.dumps(portfolio_summary_query))
+        resp = session.post(API_URL,Queries.portfolio_summary_query(portfolio_id))
         portfolio_response = json.loads(resp.text)
         portfolio_data = portfolio_response['data']['readPortfolio']['summary']
         
-        portfolio_args = {}
+        portfolio_args = {'portfolio_id': portfolio_id, 'game_id':game_id, 'game_name':game_name}
         portfolio_args['account_value'] = portfolio_data['accountValue']
         portfolio_args['buying_power'] = portfolio_data['buyingPower']
         portfolio_args['cash'] = portfolio_data['cash']
@@ -264,7 +271,10 @@ class Parsers(object):
         short_portfolio = ShortPortfolio()
         option_portfolio = OptionPortfolio()
 
-        portfolio_args['open_orders'] = Parsers.get_open_trades()
+        # TO DO
+        #Parsers.parse_and_sort_positions(portfolio_tree,stock_portfolio,short_portfolio,option_portfolio)
+
+        portfolio_args['open_orders'] = Parsers.get_open_trades(portfolio_id)
 
         #portfolio_args = {k: xpath_get(v)  for k,v in xpath_map.items()}
         
@@ -275,6 +285,25 @@ class Parsers(object):
         for order in portfolio_args['open_orders']:
             print(order.__dict__)
         return Portfolio(**portfolio_args)
+    
+    def get_portfolios():
+        session = Session()
+        resp = json.loads(session.post(API_URL,Queries.read_user_portfolios()).text)
+        print("get_portfolios")
+        portfolio_list = resp['data']['readUserPortfolios']['list']
+        portfolios = []
+
+        for portfolio in portfolio_list:
+            portfolio_id = portfolio['id']
+            game_id = portfolio['game']['id']
+            game_name = portfolio['game']['gameDetails']['name']
+            portfolios.append(Parsers.generate_portfolio(portfolio_id,game_id,game_name))
+
+
+        return portfolios
+
+
+
 
     @staticmethod
     def parse_and_sort_positions(tree,stock_portfolio,short_portfolio, option_portfolio):        

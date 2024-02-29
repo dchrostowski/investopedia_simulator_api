@@ -30,8 +30,10 @@ class OpenOrder(object):
         self.symbol = symbol
         self.quantity = quantity
         self.order_price = order_price
+        self.active = True
 
     def cancel(self):
+        self.active = False
         return self.cancel_fn()
 
 
@@ -44,6 +46,9 @@ class Portfolio(object):
     @coerce_method_params
     def __init__(
         self: object,
+        portfolio_id: int,
+        game_id: int,
+        game_name: str,
         account_value: Decimal,
         buying_power: Decimal,
         cash: Decimal,
@@ -53,6 +58,9 @@ class Portfolio(object):
         option_portfolio: object,
         open_orders: object
     ):
+        self.portfolio_id = portfolio_id
+        self.game_id = game_id
+        self.game_name = game_name
         self.account_value = account_value
         self.buying_power = buying_power
         self.cash = cash
@@ -61,7 +69,7 @@ class Portfolio(object):
         self._stock_portfolio = stock_portfolio
         self._short_portfolio = short_portfolio
         self._option_portfolio = option_portfolio
-        self.open_orders = open_orders
+        self._open_orders = open_orders
 
     @classmethod
     def _validate_append(cls, portfolio, position):
@@ -114,6 +122,15 @@ class Portfolio(object):
     @property
     def option_portfolio(self):
         return self._option_portfolio
+    
+    @property
+    def open_orders(self):
+        orders = []
+        for oo in self._open_orders:
+            if oo.active:
+                orders.append(oo)
+
+        return orders
 
 
 class StockPortfolio(Portfolio, list):

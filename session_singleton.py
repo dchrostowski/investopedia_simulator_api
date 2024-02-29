@@ -6,7 +6,7 @@ import warnings
 import re
 import json
 from IPython import embed
-from constants import API_URL
+from constants import API_URL, REFRESH_AUTH_TOKEN_URL
 from queries import Queries
 
 class NotLoggedInException(Exception):
@@ -21,7 +21,6 @@ class Session:
     class __Session(requests.Session):
         def __init__(self, *args, **kwargs):
             super().__int__(*args, **kwargs)
-            self.url='https://api.investopedia.com/simulator/graphql'
 
     __session = None
     
@@ -30,6 +29,8 @@ class Session:
         if not cls.is_logged_in():
             raise NotLoggedInException(
                 "Not logged in, call login() first with auth cookie")
+        
+        cls.refresh_token()
 
         return cls.__session
 
@@ -38,6 +39,30 @@ class Session:
 
     def __setattr__(self, name):
         return setattr(self.__session, name)
+    
+    
+    @classmethod
+    def refresh_token(cls):
+        print("refresh token called")
+        if cls.is_logged_in():
+            
+            session = cls.__session
+            auth_data = {}
+            with open("./auth.json",'r') as ifh:
+                auth_data = json.loads(ifh.readline())
+
+            
+            
+            cls.__session.headers.update({'Content-Type': 'application/x-www-form-urlencoded'})
+            refresh_token = auth_data['refresh_token']
+            payload = Queries.refresh_token(refresh_token)
+
+            auth_data = json.loads(cls.__session.post(REFRESH_AUTH_TOKEN_URL, data=Queries.refresh_token(refresh_token)).text)
+            with open('./auth.json','w') as ofh:
+                ofh.write(json.dumps(auth_data))
+
+            cls.__session.headers.update({'Authorization': "Bearer %s" % auth_data['access_token'], 'Content-Type': 'application/json'})
+
 
     @classmethod
     def is_logged_in(cls):
@@ -68,7 +93,8 @@ class Session:
 
         else:
             with open('./auth.json','r') as ifh:
-                authorization_header = json.loads(ifh.readline())
+                auth_data = json.loads(ifh.readline())
+                authorization_header = {'Authorization': "Bearer %s" % auth_data['access_token']}
                 cls.__session = requests.Session()
                 cls.__session.headers.update(authorization_header)
                 cls.__session.headers.update({'Content-Type':'application/json'})
