@@ -267,7 +267,10 @@ class Parsers(object):
         portfolio_args['cash'] = portfolio_data['cash']
         portfolio_args['annual_return_pct'] = portfolio_data['annualReturn']
 
-        stock_portfolio = StockPortfolio()
+        st_p = Parsers.generate_stock_portfolio(portfolio_id)
+
+
+        stock_portfolio = StockPortfolio(market_value=100,day_gain_dollar=100,day_gain_percent=100,total_gain_dollar=100,total_gain_percent=100)
         short_portfolio = ShortPortfolio()
         option_portfolio = OptionPortfolio()
 
@@ -302,7 +305,34 @@ class Parsers(object):
 
         return portfolios
 
+    @staticmethod
+    def make_subportfolio_dict(data):
+        return {
+            'market_value': data['marketValue'],
+            'day_gain_dollar': data['dayGainDollar'],
+            'day_gain_percent': data['dayGainPercent'],
+            'total_gain_dollar': data['totalGainDollar'],
+            'total_gain_percent': data['totalGainPercent']
+        }
 
+    @staticmethod
+    def generate_stock_portfolio(portfolio_id):
+        session = Session()
+        resp = json.loads(session.post(API_URL,data=Queries.stock_holdings(portfolio_id)).text)
+        stock_data = resp['data']['readPortfolio']['holdings']
+
+        summary_data = stock_data['holdingsSummary']
+        position_data = stock_data['executedTrades']
+
+        sub_portfolio_dict = Parsers.make_subportfolio_dict(summary_data)
+
+        
+
+        
+
+
+        print("gen stock portfolio")
+        embed()
 
 
     @staticmethod

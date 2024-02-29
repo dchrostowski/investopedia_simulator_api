@@ -37,6 +37,14 @@ class OpenOrder(object):
         return self.cancel_fn()
 
 
+class SubPortfolio(object):
+    def __init__(self,market_value,day_gain_dollar,day_gain_percent,total_gain_dollar,total_gain_percent):
+        self.market_value = market_value
+        self.day_gain_dollar = day_gain_dollar
+        self.day_gain_percent = day_gain_percent
+        self.total_gain_dollar = total_gain_dollar
+        self.total_gain_percent = total_gain_percent
+
 class Portfolio(object):
     allowable_portfolios = {
         'LongPosition': ['StockPortfolio'],
@@ -133,20 +141,23 @@ class Portfolio(object):
         return orders
 
 
-class StockPortfolio(Portfolio, list):
-    def __init__(self, positions=[]):
+class StockPortfolio(SubPortfolio, list):
+    def __init__(self, positions=[], **kwargs):
+        super().__init__(**kwargs)
         for p in positions:
             self.append(p)
 
 
-class ShortPortfolio(Portfolio, list):
-    def __init__(self, positions=[]):
+class ShortPortfolio(SubPortfolio, list):
+    def __init__(self, positions=[], **kwargs):
+        
         for p in positions:
             self.append(p)
 
 
-class OptionPortfolio(Portfolio, list):
-    def __init__(self, positions=[]):
+class OptionPortfolio(SubPortfolio, list):
+    def __init__(self, positions=[], **kwargs):
+        
         for p in positions:
             self.append(p)
 
