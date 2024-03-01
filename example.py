@@ -47,6 +47,7 @@ for position in p.stock_portfolio:
     print("Current Price: %s" % position.current_price)
     print("Today's Gain: %s (%s%%)" % (position.day_gain_dollar, position.day_gain_percent))
     print("Total Gain: %s (%s%%)" % (position.total_gain_dollar, position.total_gain_percent))
+    print("Market/Total Value: %s" % position.market_value)
     print("\t------------------------------")
     print("\tQuote")
     print("\t------------------------------")
