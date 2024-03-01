@@ -17,7 +17,6 @@ class OpenOrder(object):
         self: object,
         order_id: int,
         cancel_fn: object,
-        order_date: str,
         symbol: str,
         quantity: int,
         order_price: Decimal,
@@ -27,15 +26,25 @@ class OpenOrder(object):
         self.cancel_fn = cancel_fn
         # strptime with %-m/%-d/%Y %-I:%M:%S %p SHOULD WORK
         # because it looks like this: 4/1/2019 11:10:35 PM
-        self.order_date = date_regex(order_date)  # fuck it, we'll do it regex.
         self.trade_type = trade_type
         self.symbol = symbol
         self.quantity = quantity
         self.order_price = order_price
+        self.active = True
 
     def cancel(self):
+        self.active = False
         return self.cancel_fn()
 
+
+class SubPortfolio(object):
+    def __init__(self,portfolio_id,market_value,day_gain_dollar,day_gain_percent,total_gain_dollar,total_gain_percent):
+        self.portfolio_id = portfolio_id
+        self.market_value = market_value
+        self.day_gain_dollar = day_gain_dollar
+        self.day_gain_percent = day_gain_percent
+        self.total_gain_dollar = total_gain_dollar
+        self.total_gain_percent = total_gain_percent
 
 class Portfolio(object):
     allowable_portfolios = {
@@ -46,6 +55,9 @@ class Portfolio(object):
     @coerce_method_params
     def __init__(
         self: object,
+        portfolio_id: int,
+        game_id: int,
+        game_name: str,
         account_value: Decimal,
         buying_power: Decimal,
         cash: Decimal,
@@ -55,6 +67,9 @@ class Portfolio(object):
         option_portfolio: object,
         open_orders: object
     ):
+        self.portfolio_id = portfolio_id
+        self.game_id = game_id
+        self.game_name = game_name
         self.account_value = account_value
         self.buying_power = buying_power
         self.cash = cash
@@ -63,7 +78,7 @@ class Portfolio(object):
         self._stock_portfolio = stock_portfolio
         self._short_portfolio = short_portfolio
         self._option_portfolio = option_portfolio
-        self.open_orders = open_orders
+        self._open_orders = open_orders
 
     @classmethod
     def _validate_append(cls, portfolio, position):
@@ -116,22 +131,36 @@ class Portfolio(object):
     @property
     def option_portfolio(self):
         return self._option_portfolio
+    
+    @property
+    def open_orders(self):
+        orders = []
+        for oo in self._open_orders:
+            if oo.active:
+                orders.append(oo)
+
+        return orders
 
 
-class StockPortfolio(Portfolio, list):
-    def __init__(self, positions=[]):
+class StockPortfolio(SubPortfolio, list):
+    def __init__(self, positions=[], **kwargs):
+        super().__init__(**kwargs)
+        for p in positions:
+            self.append(p)
+
+        self.positions = self
+
+
+class ShortPortfolio(SubPortfolio, list):
+    def __init__(self, positions=[], **kwargs):
+        
         for p in positions:
             self.append(p)
 
 
-class ShortPortfolio(Portfolio, list):
-    def __init__(self, positions=[]):
-        for p in positions:
-            self.append(p)
-
-
-class OptionPortfolio(Portfolio, list):
-    def __init__(self, positions=[]):
+class OptionPortfolio(SubPortfolio, list):
+    def __init__(self, positions=[], **kwargs):
+        
         for p in positions:
             self.append(p)
 
@@ -150,26 +179,28 @@ class Position(object):
     @coerce_method_params
     def __init__(
             self: object,
-            portfolio_id: str,
             symbol: str,
             quantity: int,
             description: str,
             purchase_price: Decimal,
-            current_price: Decimal,
-            total_value: Decimal):
+            market_value: Decimal,
+            day_gain_dollar: Decimal,
+            day_gain_percent: Decimal,
+            total_gain_dollar: Decimal,
+            total_gain_percent: Decimal
+        ):
 
-        self.portfolio_id = portfolio_id
         self.symbol = symbol
         self.quantity = quantity
         self.description = description
         self.purchase_price = purchase_price
-        self.current_price = current_price
-        self.total_value = total_value
+        self.market_value = market_value
+        self.day_gain_dollar = day_gain_dollar
+        self.day_gain_percent = day_gain_percent
+        self.total_gain_dollar = total_gain_dollar
+        self.total_gain_percent = total_gain_percent
+        self.current_price = self.market_value / self.quantity
 
-    @property
-    @subclass_method
-    def total_change(self):
-        return self.change * self.quantity
 
 
 class LongPosition(Position):
@@ -188,9 +219,7 @@ class LongPosition(Position):
 
     @property
     def quote(self):
-        if self._quote is None:
-            self._quote = self._quote_fn()
-        return self._quote
+        return self._quote_fn()
 
     def sell(self, **trade_kwargs):
         trade_kwargs['symbol'] = self.symbol
@@ -281,21 +310,24 @@ class StockQuote(object):
         symbol: str,
         name: str,
         exchange: str,
-        last: Decimal,
-        change: Decimal,
-        change_percent: Decimal,
+        previous_close: Decimal,
+        bid: Decimal,
+        ask: Decimal,
         volume: int,
-        days_high: Decimal,
-        days_low: Decimal
+        day_high: Decimal,
+        day_low: Decimal
 
     ):
         self.symbol = symbol
         self.name = name
-        self.last = last
+        self.last = ask
         self.exchange = exchange
-        self.change = change
-        self.change_percent = change_percent
         self.volume = volume
-        self.days_high = days_high
-        self.days_low = days_low
-        self.open = self.last - self.change
+        self.day_high = day_high
+        self.day_low = day_low
+        self.previous_close = previous_close
+        self.bid = bid
+        self.ask = ask
+        self.last = self.ask
+        self.change = self.ask - self.previous_close
+        self.change_percent = round(self.change / self.last * 100,2)

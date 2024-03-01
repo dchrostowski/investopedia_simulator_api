@@ -1,7 +1,8 @@
 from api_models import Position,LongPosition, ShortPosition, OptionPosition
 from api_models import Portfolio,StockPortfolio,ShortPortfolio,OptionPortfolio,OpenOrder
 from api_models import StockQuote
-from constants import OPTIONS_QUOTE_URL
+from queries import Queries
+from constants import OPTIONS_QUOTE_URL, API_URL
 from options import OptionChainLookup, OptionChain, OptionContract
 from session_singleton import Session
 from utils import UrlHelper, coerce_value
@@ -14,6 +15,7 @@ import datetime
 from ratelimit import limits,sleep_and_retry
 from decimal import Decimal
 import logging
+from IPython import embed
 
 @sleep_and_retry
 @limits(calls=6,period=20)
@@ -94,44 +96,54 @@ def option_lookup(symbol,strike_price_proximity=3):
     option_chain_lookup = OptionChainLookup(symbol,*option_chains)
     return option_chain_lookup
 
+
 @sleep_and_retry
 @limits(calls=6,period=20)
 def stock_quote(symbol):
-    url = UrlHelper.route('lookup')
     session = Session()
-    resp = session.post(url, data={'symbol': symbol})
-    resp.raise_for_status()
-    try:
-        tree = html.fromstring(resp.text)
-    except Exception:
-        warn("unable to get quote for %s" % symbol)
-        return
 
-    xpath_map = {
-        'name': '//h3[@class="companyname"]/text()',
-        'symbol': '//table[contains(@class,"table3")]/tbody/tr[1]/td[1]/h3[contains(@class,"pill")]/text()',
-        'exchange': '//table[contains(@class,"table3")]//div[@class="marketname"]/text()',
-        'last': '//table[@id="Table2"]/tbody/tr[1]/th[contains(text(),"Last")]/following-sibling::td/text()',
-        'change': '//table[@id="Table2"]/tbody/tr[2]/th[contains(text(),"Change")]/following-sibling::td/text()',
-        'change_percent': '//table[@id="Table2"]/tbody/tr[3]/th[contains(text(),"% Change")]/following-sibling::td/text()',
-        'volume': '//table[@id="Table2"]/tbody/tr[4]/th[contains(text(),"Volume")]/following-sibling::td/text()',
-        'days_high': '//table[@id="Table2"]/tbody/tr[5]/th[contains(text(),"Day\'s High")]/following-sibling::td/text()',
-        'days_low': '//table[@id="Table2"]/tbody/tr[6]/th[contains(text(),"Day\'s Low")]/following-sibling::td/text()'
+    search_resp = session.post(API_URL,data=Queries.stock_search(symbol))
+    search_resp.raise_for_status()
+
+    search_data_list = json.loads(search_resp.text)['data']['searchStockSymbols']['list']
+    name = ''
+
+    for sd in search_data_list:
+        if sd['symbol'] == symbol.upper():
+            name = sd['description']
+            symbol = sd['symbol']
+            break
+
+    exchange_resp = session.post(API_URL, data=Queries.stock_exchange(symbol))
+    exchange_resp.raise_for_status()
+
+    exchange_data = json.loads(exchange_resp.text)['data']['readStock']
+    exchange = exchange_data['exchange']
+
+    quote_resp = session.post(API_URL, data=Queries.stock_quote(symbol))
+    quote_resp.raise_for_status()
+
+    quote_data = json.loads(quote_resp.text)['data']['readStock']['technical']
+
+    yahoo_url = "https://query1.finance.yahoo.com/v8/finance/chart/%s" % symbol
+    yahoo_headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
+
+    yahoo_resp = requests.get(yahoo_url,headers=yahoo_headers)
+    yahoo_resp.raise_for_status()
+    yahoo_data = json.loads(yahoo_resp.text)
+    prev_close = yahoo_data['chart']['result'][0]['meta']['previousClose']
+
+    stock_quote_data = {
+        'symbol': symbol,
+        'name': name,
+        'exchange': exchange,
+        'previous_close': prev_close,
+        'bid': quote_data['bidPrice'],
+        'ask': quote_data['askPrice'],
+        'volume': quote_data['volume'],
+        'day_high': quote_data['dayHighPrice'],
+        'day_low': quote_data['dayLowPrice']
     }
-
-    stock_quote_data = {}
-    try:
-        stock_quote_data = {
-            k: str(tree.xpath(v)[0]).strip() for k, v in xpath_map.items()}
-    except IndexError:
-        warn("Unable to parse quote ")
-        return
-        
-
-    exchange_matches = re.search(
-        r'^\(([^\)]+)\)$', stock_quote_data['exchange'])
-    if exchange_matches:
-        stock_quote_data['exchange'] = exchange_matches.group(1)
 
     quote = StockQuote(**stock_quote_data)
     return quote
@@ -156,97 +168,196 @@ class OptionLookupWrapper(object):
         return option_lookup(self.underlying)[self.contract_symbol]
 
 class CancelOrderWrapper(object):
-    def __init__(self,link):
-        self.link = link
+    def __init__(self,order_id):
+        self.order_id = order_id
     @sleep_and_retry
     @limits(calls=3,period=20)
     def wrap_cancel(self):
-        url = "%s%s" % (UrlHelper.route('opentrades'),self.link)
-        print(url)
         session = Session()
-        session.get(url)
-        
+        session.post(API_URL,Queries.cancel_order(self.order_id))        
 
 class Parsers(object):
     @staticmethod
     @sleep_and_retry
     @limits(calls=6,period=20)
-    def get_open_trades(portfolio_tree):
-        session = Session()
-        open_trades_resp = session.get(UrlHelper.route('opentrades'))
-        open_tree = html.fromstring(open_trades_resp.text)
-        open_trade_rows = open_tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
-
-        ot_xpath_map = {
-            'order_id': 'td[1]/text()',
-            'symbol': 'td[5]/a/text()',
-            'cancel_fn': 'td[2]/a/@href',
-            'order_date': 'td[3]/text()',
-            'quantity': 'td[6]/text()',
-            'order_price': 'td[7]/text()',
-            'trade_type' : 'td[4]/text()'
-        
-        }
-
+    def get_open_trades(portfolio_id):
         open_orders = []
+        session = Session()
 
-        for tr in open_trade_rows:
-            fon = lambda x: x[0] if len(x)> 0 else None
-            open_order_dict = {k:fon(tr.xpath(v)) for k,v in ot_xpath_map.items()}
-            symbol_match = re.search(r'^([^\.\d]+)',open_order_dict['symbol'])
-            if symbol_match:
-                open_order_dict['symbol'] = symbol_match.group(1)
-            if open_order_dict['order_price'] == 'n/a':
-                oid = open_order_dict['order_id']
-                quantity = int(open_order_dict['quantity'])
-                pxpath = '//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]//span[contains(@id,"%s")]/ancestor::tr/td[5]/span/text()' % oid
-                cancel_link = open_order_dict['cancel_fn']
-                wrapper = CancelOrderWrapper(cancel_link)
-                open_order_dict['cancel_fn'] = wrapper.wrap_cancel
-                try:
-                    current_price = coerce_value(fon(portfolio_tree.xpath(pxpath)),Decimal)
-                    open_order_dict['order_price'] = current_price * quantity
-                except Exception as e:
-                    warn("Unable to parse open trade value for %s" % open_order_dict['symbol'])
-                    open_order_dict['order_price'] = 0
+        
+        open_stock_trades_response = json.loads(session.post(API_URL, data=Queries.open_stock_trades(portfolio_id)).text)
+        open_option_trades_response = json.loads(session.post(API_URL, data=Queries.open_option_trades(portfolio_id)).text)
+        open_short_trades_response = json.loads(session.post(API_URL, data=Queries.open_short_trades(portfolio_id)).text)
+
+        all_open_trades_responses = [open_stock_trades_response, open_option_trades_response, open_short_trades_response]
+
+        for open_trade_resp in all_open_trades_responses:
+
+            open_trades = open_trade_resp['data']['readPortfolio']['holdings']['pendingTrades']
+            
+            for open_trade in open_trades:
+                if open_trade['cancelDate'] is not None:
+                    continue
+            
+                order_dict = {
+                    'order_id': open_trade['tradeId'],
+                    'symbol': open_trade['symbol'],
+                    'quantity': open_trade['quantity'],
+                    'order_price': open_trade['orderPriceDescription'],
+                    'trade_type': open_trade['transactionTypeDescription']  
+                }
+
                 
-                open_orders.append(OpenOrder(**open_order_dict))
+
+                if order_dict['order_price'] == 'n/a':
+                    try:
+                        order_dict['order_price'] = open_trade['stock']['technical']['lastPrice'] * -1
+                    except KeyError as e:
+                        order_dict['order_price'] = open_trade['option']['lastPrice'] * -1
+
+                wrapper = CancelOrderWrapper(order_dict['order_id'])
+                order_dict['cancel_fn'] = wrapper.wrap_cancel
+
+
+                open_orders.append(OpenOrder(**order_dict))
+        
+        # open_trades_resp = session.get(UrlHelper.route('opentrades'))
+        # open_tree = html.fromstring(open_trades_resp.text)
+        # open_trade_rows = open_tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
+
+        # ot_xpath_map = {
+        #     'order_id': 'td[1]/text()',
+        #     'symbol': 'td[5]/a/text()',
+        #     'cancel_fn': 'td[2]/a/@href',
+        #     'order_date': 'td[3]/text()',
+        #     'quantity': 'td[6]/text()',
+        #     'order_price': 'td[7]/text()',
+        #     'trade_type' : 'td[4]/text()'
+        
+        # }
+
+        # open_orders = []
+
+        # for tr in open_trade_rows:
+        #     fon = lambda x: x[0] if len(x)> 0 else None
+        #     open_order_dict = {k:fon(tr.xpath(v)) for k,v in ot_xpath_map.items()}
+        #     symbol_match = re.search(r'^([^\.\d]+)',open_order_dict['symbol'])
+        #     if symbol_match:
+        #         open_order_dict['symbol'] = symbol_match.group(1)
+        #     if open_order_dict['order_price'] == 'n/a':
+        #         oid = open_order_dict['order_id']
+        #         quantity = int(open_order_dict['quantity'])
+        #         pxpath = '//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]//span[contains(@id,"%s")]/ancestor::tr/td[5]/span/text()' % oid
+        #         cancel_link = open_order_dict['cancel_fn']
+        #         wrapper = CancelOrderWrapper(cancel_link)
+        #         open_order_dict['cancel_fn'] = wrapper.wrap_cancel
+        #         try:
+        #             current_price = coerce_value(fon(portfolio_tree.xpath(pxpath)),Decimal)
+        #             open_order_dict['order_price'] = current_price * quantity
+        #         except Exception as e:
+        #             warn("Unable to parse open trade value for %s" % open_order_dict['symbol'])
+        #             open_order_dict['order_price'] = 0
+                
+        #         open_orders.append(OpenOrder(**open_order_dict))
         return open_orders
 
 
     @staticmethod
     @sleep_and_retry
     @limits(calls=6,period=20)
-    def get_portfolio():
+    def generate_portfolio(portfolio_id,game_id,game_name):
         session = Session()
-        portfolio_response = session.get(UrlHelper.route('portfolio'))
-        portfolio_tree = html.fromstring(portfolio_response.text)
+        resp = session.post(API_URL,Queries.portfolio_summary_query(portfolio_id))
+        portfolio_response = json.loads(resp.text)
+        portfolio_data = portfolio_response['data']['readPortfolio']['summary']
+        
+        portfolio_args = {'portfolio_id': portfolio_id, 'game_id':game_id, 'game_name':game_name}
+        portfolio_args['account_value'] = portfolio_data['accountValue']
+        portfolio_args['buying_power'] = portfolio_data['buyingPower']
+        portfolio_args['cash'] = portfolio_data['cash']
+        portfolio_args['annual_return_pct'] = portfolio_data['annualReturn']
 
-        stock_portfolio = StockPortfolio()
+
+        stock_portfolio = Parsers.generate_stock_portfolio(portfolio_id)
         short_portfolio = ShortPortfolio()
         option_portfolio = OptionPortfolio()
 
-        Parsers.parse_and_sort_positions(portfolio_tree,stock_portfolio,short_portfolio,option_portfolio)
+        # TO DO
+        #Parsers.parse_and_sort_positions(portfolio_tree,stock_portfolio,short_portfolio,option_portfolio)
 
-        xpath_prefix = '//div[@id="infobar-container"]/div[@class="infobar-title"]/p'
+        portfolio_args['open_orders'] = Parsers.get_open_trades(portfolio_id)
 
-        xpath_map = {
-            'account_value': '/strong[contains(text(),"Account Value")]/following-sibling::span/text()',
-            'buying_power':  '/strong[contains(text(),"Buying Power")]/following-sibling::span/text()',
-            'cash':          '/strong[contains(text(),"Cash")]/following-sibling::span/text()',
-            'annual_return_pct': '/strong[contains(text(),"Annual Return")]/following-sibling::span/text()',
-        }
-
-        xpath_get = lambda xpth: portfolio_tree.xpath("%s%s" % (xpath_prefix,xpth))[0]
-
-        portfolio_args = {k: xpath_get(v)  for k,v in xpath_map.items()}
+        #portfolio_args = {k: xpath_get(v)  for k,v in xpath_map.items()}
+        
         portfolio_args['stock_portfolio'] = stock_portfolio
         portfolio_args['short_portfolio'] = short_portfolio
         portfolio_args['option_portfolio'] = option_portfolio
-        portfolio_args['open_orders'] = Parsers.get_open_trades(portfolio_tree)
-        for order in portfolio_args['open_orders']:
-            print(order.__dict__)
+
         return Portfolio(**portfolio_args)
+
+    def get_portfolios():
+        session = Session()
+        resp = json.loads(session.post(API_URL,Queries.read_user_portfolios()).text)
+
+        portfolio_list = resp['data']['readUserPortfolios']['list']
+        portfolios = []
+
+        for portfolio in portfolio_list:
+            portfolio_id = portfolio['id']
+            game_id = portfolio['game']['id']
+            game_name = portfolio['game']['gameDetails']['name']
+            portfolios.append(Parsers.generate_portfolio(portfolio_id,game_id,game_name))
+
+
+        return portfolios
+
+    @staticmethod
+    def make_subportfolio_dict(portfolio_id, data):
+        return {
+            'portfolio_id': portfolio_id,
+            'market_value': data['marketValue'],
+            'day_gain_dollar': data['dayGainDollar'],
+            'day_gain_percent': data['dayGainPercent'],
+            'total_gain_dollar': data['totalGainDollar'],
+            'total_gain_percent': data['totalGainPercent']
+        }
+
+    @staticmethod
+    def generate_stock_portfolio(portfolio_id):
+        session = Session()
+        resp = json.loads(session.post(API_URL,data=Queries.stock_holdings(portfolio_id)).text)
+        stock_data = resp['data']['readPortfolio']['holdings']
+
+        summary_data = stock_data['holdingsSummary']
+        position_data = stock_data['executedTrades']
+
+        sub_portfolio_dict = Parsers.make_subportfolio_dict(portfolio_id,summary_data)
+        positions = []
+
+        for data in position_data:
+            position_kwargs = {
+                'symbol': data['symbol'],
+                'quantity': data['quantity'],
+                'description': data['stock']['description'],
+                'purchase_price': data['purchasePrice'],
+                'market_value': data['marketValue'],
+                'day_gain_dollar': data['dayGainDollar'],
+                'day_gain_percent': data['dayGainPercent'],
+                'total_gain_dollar': data['totalGainDollar'],
+                'total_gain_percent': data['totalGainPercent'],
+            }
+            qw = QuoteWrapper(data['symbol'])
+            position_kwargs['stock_type'] = 'long'
+            position_kwargs['quote_fn'] = qw.wrap_quote
+
+            stock_position = LongPosition(**position_kwargs)
+            positions.append(stock_position)
+
+        stock_portfolio = StockPortfolio(positions=positions,**sub_portfolio_dict)
+
+        return stock_portfolio
+
+
 
     @staticmethod
     def parse_and_sort_positions(tree,stock_portfolio,short_portfolio, option_portfolio):        
