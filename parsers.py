@@ -326,13 +326,15 @@ class Parsers(object):
 
         sub_portfolio_dict = Parsers.make_subportfolio_dict(summary_data)
 
+        for pos in position_data:
+            print(pos)
+
         
 
         
 
 
         print("gen stock portfolio")
-        embed()
 
 
     @staticmethod
