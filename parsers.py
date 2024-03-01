@@ -96,44 +96,54 @@ def option_lookup(symbol,strike_price_proximity=3):
     option_chain_lookup = OptionChainLookup(symbol,*option_chains)
     return option_chain_lookup
 
+
 @sleep_and_retry
 @limits(calls=6,period=20)
 def stock_quote(symbol):
-    url = UrlHelper.route('lookup')
     session = Session()
-    resp = session.post(url, data={'symbol': symbol})
-    resp.raise_for_status()
-    try:
-        tree = html.fromstring(resp.text)
-    except Exception:
-        warn("unable to get quote for %s" % symbol)
-        return
 
-    xpath_map = {
-        'name': '//h3[@class="companyname"]/text()',
-        'symbol': '//table[contains(@class,"table3")]/tbody/tr[1]/td[1]/h3[contains(@class,"pill")]/text()',
-        'exchange': '//table[contains(@class,"table3")]//div[@class="marketname"]/text()',
-        'last': '//table[@id="Table2"]/tbody/tr[1]/th[contains(text(),"Last")]/following-sibling::td/text()',
-        'change': '//table[@id="Table2"]/tbody/tr[2]/th[contains(text(),"Change")]/following-sibling::td/text()',
-        'change_percent': '//table[@id="Table2"]/tbody/tr[3]/th[contains(text(),"% Change")]/following-sibling::td/text()',
-        'volume': '//table[@id="Table2"]/tbody/tr[4]/th[contains(text(),"Volume")]/following-sibling::td/text()',
-        'days_high': '//table[@id="Table2"]/tbody/tr[5]/th[contains(text(),"Day\'s High")]/following-sibling::td/text()',
-        'days_low': '//table[@id="Table2"]/tbody/tr[6]/th[contains(text(),"Day\'s Low")]/following-sibling::td/text()'
+    search_resp = session.post(API_URL,data=Queries.stock_search(symbol))
+    search_resp.raise_for_status()
+
+    search_data_list = json.loads(search_resp.text)['data']['searchStockSymbols']['list']
+    name = ''
+
+    for sd in search_data_list:
+        if sd['symbol'] == symbol.upper():
+            name = sd['description']
+            symbol = sd['symbol']
+            break
+
+    exchange_resp = session.post(API_URL, data=Queries.stock_exchange(symbol))
+    exchange_resp.raise_for_status()
+
+    exchange_data = json.loads(exchange_resp.text)['data']['readStock']
+    exchange = exchange_data['exchange']
+
+    quote_resp = session.post(API_URL, data=Queries.stock_quote(symbol))
+    quote_resp.raise_for_status()
+
+    quote_data = json.loads(quote_resp.text)['data']['readStock']['technical']
+
+    yahoo_url = "https://query1.finance.yahoo.com/v8/finance/chart/%s" % symbol
+    yahoo_headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
+
+    yahoo_resp = requests.get(yahoo_url,headers=yahoo_headers)
+    yahoo_resp.raise_for_status()
+    yahoo_data = json.loads(yahoo_resp.text)
+    prev_close = yahoo_data['chart']['result'][0]['meta']['previousClose']
+
+    stock_quote_data = {
+        'symbol': symbol,
+        'name': name,
+        'exchange': exchange,
+        'previous_close': prev_close,
+        'bid': quote_data['bidPrice'],
+        'ask': quote_data['askPrice'],
+        'volume': quote_data['volume'],
+        'day_high': quote_data['dayHighPrice'],
+        'day_low': quote_data['dayLowPrice']
     }
-
-    stock_quote_data = {}
-    try:
-        stock_quote_data = {
-            k: str(tree.xpath(v)[0]).strip() for k, v in xpath_map.items()}
-    except IndexError:
-        warn("Unable to parse quote ")
-        return
-        
-
-    exchange_matches = re.search(
-        r'^\(([^\)]+)\)$', stock_quote_data['exchange'])
-    if exchange_matches:
-        stock_quote_data['exchange'] = exchange_matches.group(1)
 
     quote = StockQuote(**stock_quote_data)
     return quote
@@ -267,10 +277,8 @@ class Parsers(object):
         portfolio_args['cash'] = portfolio_data['cash']
         portfolio_args['annual_return_pct'] = portfolio_data['annualReturn']
 
-        st_p = Parsers.generate_stock_portfolio(portfolio_id)
 
-
-        stock_portfolio = StockPortfolio(market_value=100,day_gain_dollar=100,day_gain_percent=100,total_gain_dollar=100,total_gain_percent=100)
+        stock_portfolio = Parsers.generate_stock_portfolio(portfolio_id)
         short_portfolio = ShortPortfolio()
         option_portfolio = OptionPortfolio()
 
@@ -284,15 +292,13 @@ class Parsers(object):
         portfolio_args['stock_portfolio'] = stock_portfolio
         portfolio_args['short_portfolio'] = short_portfolio
         portfolio_args['option_portfolio'] = option_portfolio
-        #portfolio_args['open_orders'] = Parsers.get_open_trades(portfolio_tree)
-        for order in portfolio_args['open_orders']:
-            print(order.__dict__)
+
         return Portfolio(**portfolio_args)
-    
+
     def get_portfolios():
         session = Session()
         resp = json.loads(session.post(API_URL,Queries.read_user_portfolios()).text)
-        print("get_portfolios")
+
         portfolio_list = resp['data']['readUserPortfolios']['list']
         portfolios = []
 
@@ -306,8 +312,9 @@ class Parsers(object):
         return portfolios
 
     @staticmethod
-    def make_subportfolio_dict(data):
+    def make_subportfolio_dict(portfolio_id, data):
         return {
+            'portfolio_id': portfolio_id,
             'market_value': data['marketValue'],
             'day_gain_dollar': data['dayGainDollar'],
             'day_gain_percent': data['dayGainPercent'],
@@ -324,17 +331,32 @@ class Parsers(object):
         summary_data = stock_data['holdingsSummary']
         position_data = stock_data['executedTrades']
 
-        sub_portfolio_dict = Parsers.make_subportfolio_dict(summary_data)
+        sub_portfolio_dict = Parsers.make_subportfolio_dict(portfolio_id,summary_data)
+        positions = []
 
-        for pos in position_data:
-            print(pos)
+        for data in position_data:
+            position_kwargs = {
+                'symbol': data['symbol'],
+                'quantity': data['quantity'],
+                'description': data['stock']['description'],
+                'purchase_price': data['purchasePrice'],
+                'market_value': data['marketValue'],
+                'day_gain_dollar': data['dayGainDollar'],
+                'day_gain_percent': data['dayGainPercent'],
+                'total_gain_dollar': data['totalGainDollar'],
+                'total_gain_percent': data['totalGainPercent'],
+            }
+            qw = QuoteWrapper(data['symbol'])
+            position_kwargs['stock_type'] = 'long'
+            position_kwargs['quote_fn'] = qw.wrap_quote
 
-        
+            stock_position = LongPosition(**position_kwargs)
+            positions.append(stock_position)
 
-        
+        stock_portfolio = StockPortfolio(positions=positions,**sub_portfolio_dict)
 
+        return stock_portfolio
 
-        print("gen stock portfolio")
 
 
     @staticmethod

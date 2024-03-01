@@ -38,7 +38,8 @@ class OpenOrder(object):
 
 
 class SubPortfolio(object):
-    def __init__(self,market_value,day_gain_dollar,day_gain_percent,total_gain_dollar,total_gain_percent):
+    def __init__(self,portfolio_id,market_value,day_gain_dollar,day_gain_percent,total_gain_dollar,total_gain_percent):
+        self.portfolio_id = portfolio_id
         self.market_value = market_value
         self.day_gain_dollar = day_gain_dollar
         self.day_gain_percent = day_gain_percent
@@ -147,6 +148,8 @@ class StockPortfolio(SubPortfolio, list):
         for p in positions:
             self.append(p)
 
+        self.positions = self
+
 
 class ShortPortfolio(SubPortfolio, list):
     def __init__(self, positions=[], **kwargs):
@@ -176,26 +179,28 @@ class Position(object):
     @coerce_method_params
     def __init__(
             self: object,
-            portfolio_id: str,
             symbol: str,
             quantity: int,
             description: str,
             purchase_price: Decimal,
-            current_price: Decimal,
-            total_value: Decimal):
+            market_value: Decimal,
+            day_gain_dollar: Decimal,
+            day_gain_percent: Decimal,
+            total_gain_dollar: Decimal,
+            total_gain_percent: Decimal
+        ):
 
-        self.portfolio_id = portfolio_id
         self.symbol = symbol
         self.quantity = quantity
         self.description = description
         self.purchase_price = purchase_price
-        self.current_price = current_price
-        self.total_value = total_value
+        self.market_value = market_value
+        self.day_gain_dollar = day_gain_dollar
+        self.day_gain_percent = day_gain_percent
+        self.total_gain_dollar = total_gain_dollar
+        self.total_gain_percent = total_gain_percent
+        self.current_price = self.market_value / self.quantity
 
-    @property
-    @subclass_method
-    def total_change(self):
-        return self.change * self.quantity
 
 
 class LongPosition(Position):
@@ -214,9 +219,7 @@ class LongPosition(Position):
 
     @property
     def quote(self):
-        if self._quote is None:
-            self._quote = self._quote_fn()
-        return self._quote
+        return self._quote_fn()
 
     def sell(self, **trade_kwargs):
         trade_kwargs['symbol'] = self.symbol
@@ -307,21 +310,24 @@ class StockQuote(object):
         symbol: str,
         name: str,
         exchange: str,
-        last: Decimal,
-        change: Decimal,
-        change_percent: Decimal,
+        previous_close: Decimal,
+        bid: Decimal,
+        ask: Decimal,
         volume: int,
-        days_high: Decimal,
-        days_low: Decimal
+        day_high: Decimal,
+        day_low: Decimal
 
     ):
         self.symbol = symbol
         self.name = name
-        self.last = last
+        self.last = ask
         self.exchange = exchange
-        self.change = change
-        self.change_percent = change_percent
         self.volume = volume
-        self.days_high = days_high
-        self.days_low = days_low
-        self.open = self.last - self.change
+        self.day_high = day_high
+        self.day_low = day_low
+        self.previous_close = previous_close
+        self.bid = bid
+        self.ask = ask
+        self.last = self.ask
+        self.change = self.ask - self.previous_close
+        self.change_percent = round(self.change / self.last * 100,2)

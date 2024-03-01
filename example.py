@@ -11,16 +11,51 @@ with open('credentials.json') as ifh:
 client = InvestopediaApi(credentials)
 
 p = client.portfolio
+print("\nPortfolio Details")
+print("-------------------------------------------------")
+print("Portfolio Value: %s" % p.account_value)
+print("Cash: %s" % p.cash)
+print("Buying Power: %s" % p.buying_power)
+print("Annual Return Percent: %s" % p.annual_return_pct)
+print("-------------------------------------------------")
 
-print("account value: %s" % p.account_value)
-print("cash: %s" % p.cash)
-print("buying power: %s" % p.buying_power)
-print("annual return pct: %s" % p.annual_return_pct)
 
-print("open orders:")
-print(p.open_orders)
+print("\nOpen Orders:")
+for open_order in p.open_orders:
+    print("-------------------------------------------------")
+    print("Trade Type: %s" % open_order.trade_type)
+    print("Symbol: %s" % open_order.symbol)
+    print("Quantity: %s" % open_order.quantity)
+    print("Price: %s" % open_order.order_price)
+    print("-------------------------------------------------")
 
-embed()
+stock_portfolio = p.stock_portfolio
+
+print("\nStock Portfolio Details:")
+print("-------------------------------------------------")
+print("Market Value: %s" % stock_portfolio.market_value)
+print("Today's Gain: %s (%s%%)" % (stock_portfolio.day_gain_dollar, stock_portfolio.day_gain_percent))
+print("Total Gain: %s (%s%%)" % (stock_portfolio.total_gain_dollar, stock_portfolio.total_gain_percent))
+print("-------------------------------------------------")
+
+print("\nStock Portfolio Positions:")
+for position in p.stock_portfolio:
+    print("-------------------------------------------------")
+    print("Company: %s (%s)" % (position.description, position.symbol))
+    print("Shares: %s" % position.quantity)
+    print("Purchase Price: %s" % position.purchase_price)
+    print("Current Price: %s" % position.current_price)
+    print("Today's Gain: %s (%s%%)" % (position.day_gain_dollar, position.day_gain_percent))
+    print("Total Gain: %s (%s%%)" % (position.total_gain_dollar, position.total_gain_percent))
+    print("\t------------------------------")
+    print("\tQuote")
+    print("\t------------------------------")
+    quote = position.quote
+    for k,v in quote.__dict__.items():
+        print("\t%s: %s" % (k,v))
+    print("\t------------------------------")
+    print("-------------------------------------------------")
+
 
 # # get a quote
 # quote = client.get_stock_quote('GOOG')
