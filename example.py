@@ -1,6 +1,7 @@
 from investopedia_api import InvestopediaApi, TradeExceedsMaxSharesException
 import json
 import datetime
+from IPython import embed
 
 credentials = {}
 with open('credentials.json') as ifh:
@@ -10,153 +11,193 @@ with open('credentials.json') as ifh:
 client = InvestopediaApi(credentials)
 
 p = client.portfolio
-
-print("account value: %s" % p.account_value)
-print("cash: %s" % p.cash)
-print("buying power: %s" % p.buying_power)
-print("annual return pct: %s" % p.annual_return_pct)
-
-# get a quote
-quote = client.get_stock_quote('GOOG')
-print(quote.__dict__)
+print("\nPortfolio Details")
+print("-------------------------------------------------")
+print("Portfolio Value: %s" % p.account_value)
+print("Cash: %s" % p.cash)
+print("Buying Power: %s" % p.buying_power)
+print("Annual Return Percent: %s" % p.annual_return_pct)
+print("-------------------------------------------------")
 
 
+print("\nOpen Orders:")
+for open_order in p.open_orders:
+    print("-------------------------------------------------")
+    print("Trade Type: %s" % open_order.trade_type)
+    print("Symbol: %s" % open_order.symbol)
+    print("Quantity: %s" % open_order.quantity)
+    print("Price: %s" % open_order.order_price)
+    print("-------------------------------------------------")
 
-# option chain lookup
-lookup = client.get_option_chain('MSFT')
-# get all options expiring between the date range specified
-for chain in lookup.search_by_daterange(datetime.datetime.now(), datetime.datetime(2100, 1, 1)):
-    print("--------------------------------")
-    print("calls expiring on %s" % chain.expiration_date_str)
-    for call in chain.calls:
-        print(call)
-    print("puts expiring on %s" % chain.expiration_date_str)
-    for put in chain.puts:
-        print(put)
-    print("--------------------------------")
+stock_portfolio = p.stock_portfolio
 
+print("\nStock Portfolio Details:")
+print("-------------------------------------------------")
+print("Market Value: %s" % stock_portfolio.market_value)
+print("Today's Gain: %s (%s%%)" % (stock_portfolio.day_gain_dollar, stock_portfolio.day_gain_percent))
+print("Total Gain: %s (%s%%)" % (stock_portfolio.total_gain_dollar, stock_portfolio.total_gain_percent))
+print("-------------------------------------------------")
 
-option_contract = lookup.get('MSFT2217R80')
-# order_type, duration, and send_email default to Market, Good Till Cancelled, and True respectively
-option_trade = client.OptionTrade(
-    option_contract, 10, trade_type='buy to open')
-trade_info = None
-try:
-    trade_info = option_trade.validate()
-except TradeExceedsMaxSharesException as e:
-    option_trade.quantity = e.max_shares
-    trade_info = option_trade.validate()
-if option_trade.validated:
-    print(trade_info)
-    option_trade.execute()
-# Read your portfolio
-long_positions = client.portfolio.stock_portfolio
-short_positions = client.portfolio.short_portfolio
-my_options = client.portfolio.option_portfolio
-
-for pos in long_positions:
-    print("--------------------")
-    print(pos.symbol)
-    print(pos.purchase_price)
-    print(pos.current_price)
-    print(pos.change)
-    print(pos.total_value)
-
-    # This gets a quote with addtional info like volume
-    quote = pos.quote
-    if quote is not None:
-        print(quote.__dict__)
-    print("---------------------")
-
-for pos in short_positions:
-    print("--------------------")
-    print(pos.symbol)
-    print(pos.purchase_price)
-    print(pos.current_price)
-    print(pos.change)
-    print(pos.total_value)
-
-    # This gets a quote with addtional info like volume
-    quote = pos.quote
-
-    try:
-        print(quote.__dict__)
-        print("---------------------")
-    except Exception as e:
-        print("bad quote for %s" % pos.symbol)
-
-for pos in my_options:
-    print("--------------------")
-    print(pos.symbol)
-    print(pos.purchase_price)
-    print(pos.purchase_price)
-    print(pos.current_price)
-    print(pos.strike_price)
-    print(pos.expiration)
-    print(pos.total_value)
-    print("---------------------")
-
-# sell a long position
-if len(long_positions) > 0:
-    # Generates a trade to sell all owned shares of position
-    trade = long_positions[0].sell()
-    # validate the trade
-    trade_info = trade.validate()
-    if trade.validated:
-        print(trade_info)
-        trade.execute()
-    # place the order
-    # validated.execute()
-
-# cover a shorted position
-if len(short_positions) > 0:
-    # generates a trade that will cover a shorted position
-    trade = short_positions[0].cover()
-    trade_info = trade.validate()
-    if trade.validated:
-        print(trade_info)
-        trade.execute()
-
-# close out an option
-if len(my_options) > 0:
-    trade = None
-    for option_position in my_options:
-        if not option_position.is_expired:
-            trade = option_position.close()
-            trade_info = trade.validate()
-            if trade.validated:
-                print(trade_info)
-                trade.execute()
-            break
+print("\nStock Portfolio Positions:")
+for position in p.stock_portfolio:
+    print("-------------------------------------------------")
+    print("Company: %s (%s)" % (position.description, position.symbol))
+    print("Shares: %s" % position.quantity)
+    print("Purchase Price: %s" % position.purchase_price)
+    print("Current Price: %s" % position.current_price)
+    print("Today's Gain: %s (%s%%)" % (position.day_gain_dollar, position.day_gain_percent))
+    print("Total Gain: %s (%s%%)" % (position.total_gain_dollar, position.total_gain_percent))
+    print("\t------------------------------")
+    print("\tQuote")
+    print("\t------------------------------")
+    quote = position.quote
+    for k,v in quote.__dict__.items():
+        print("\t%s: %s" % (k,v))
+    print("\t------------------------------")
+    print("-------------------------------------------------")
 
 
-# construct a trade (see trade_common.py and stock_trade.py for a hint)
-trade1 = client.StockTrade(symbol='GOOG', quantity=10, trade_type='buy',
-                           order_type='market', duration='good_till_cancelled', send_email=True)
-# validate the trade
-trade_info = trade1.validate()
-print(trade_info)
+# # get a quote
+# quote = client.get_stock_quote('GOOG')
+# print(quote.__dict__)
 
-# change the trade to a day order
-trade1.duration = 'day_order'
-# Another way to change the trade to a day order
-trade1.duration = client.TradeProperties.Duration.DAY_ORDER()
 
-# make it a limit order
-trade1.order_type = 'limit 20.00'
-# alternate way
-trade1.order_type = client.TradeProperties.OrderType.LIMIT(20.00)
 
-# validate it, see changes:
-trade_info = trade1.validate()
-if trade1.validated:
-    print(trade_info)
-    trade1.execute()
+# # option chain lookup
+# lookup = client.get_option_chain('MSFT')
+# # get all options expiring between the date range specified
+# for chain in lookup.search_by_daterange(datetime.datetime.now(), datetime.datetime(2100, 1, 1)):
+#     print("--------------------------------")
+#     print("calls expiring on %s" % chain.expiration_date_str)
+#     for call in chain.calls:
+#         print(call)
+#     print("puts expiring on %s" % chain.expiration_date_str)
+#     for put in chain.puts:
+#         print(put)
+#     print("--------------------------------")
 
-# View open orders / pending trades
-client.refresh_portfolio()
-open_orders = client.open_orders
 
-# cancel the first open order / pending trade
-open_orders[0].cancel()
-client.refresh_portfolio()
+# option_contract = lookup.get('MSFT2217R80')
+# # order_type, duration, and send_email default to Market, Good Till Cancelled, and True respectively
+# option_trade = client.OptionTrade(
+#     option_contract, 10, trade_type='buy to open')
+# trade_info = None
+# try:
+#     trade_info = option_trade.validate()
+# except TradeExceedsMaxSharesException as e:
+#     option_trade.quantity = e.max_shares
+#     trade_info = option_trade.validate()
+# if option_trade.validated:
+#     print(trade_info)
+#     option_trade.execute()
+# # Read your portfolio
+# long_positions = client.portfolio.stock_portfolio
+# short_positions = client.portfolio.short_portfolio
+# my_options = client.portfolio.option_portfolio
+
+# for pos in long_positions:
+#     print("--------------------")
+#     print(pos.symbol)
+#     print(pos.purchase_price)
+#     print(pos.current_price)
+#     print(pos.change)
+#     print(pos.total_value)
+
+#     # This gets a quote with addtional info like volume
+#     quote = pos.quote
+#     if quote is not None:
+#         print(quote.__dict__)
+#     print("---------------------")
+
+# for pos in short_positions:
+#     print("--------------------")
+#     print(pos.symbol)
+#     print(pos.purchase_price)
+#     print(pos.current_price)
+#     print(pos.change)
+#     print(pos.total_value)
+
+#     # This gets a quote with addtional info like volume
+#     quote = pos.quote
+
+#     try:
+#         print(quote.__dict__)
+#         print("---------------------")
+#     except Exception as e:
+#         print("bad quote for %s" % pos.symbol)
+
+# for pos in my_options:
+#     print("--------------------")
+#     print(pos.symbol)
+#     print(pos.purchase_price)
+#     print(pos.purchase_price)
+#     print(pos.current_price)
+#     print(pos.strike_price)
+#     print(pos.expiration)
+#     print(pos.total_value)
+#     print("---------------------")
+
+# # sell a long position
+# if len(long_positions) > 0:
+#     # Generates a trade to sell all owned shares of position
+#     trade = long_positions[0].sell()
+#     # validate the trade
+#     trade_info = trade.validate()
+#     if trade.validated:
+#         print(trade_info)
+#         trade.execute()
+#     # place the order
+#     # validated.execute()
+
+# # cover a shorted position
+# if len(short_positions) > 0:
+#     # generates a trade that will cover a shorted position
+#     trade = short_positions[0].cover()
+#     trade_info = trade.validate()
+#     if trade.validated:
+#         print(trade_info)
+#         trade.execute()
+
+# # close out an option
+# if len(my_options) > 0:
+#     trade = None
+#     for option_position in my_options:
+#         if not option_position.is_expired:
+#             trade = option_position.close()
+#             trade_info = trade.validate()
+#             if trade.validated:
+#                 print(trade_info)
+#                 trade.execute()
+#             break
+
+
+# # construct a trade (see trade_common.py and stock_trade.py for a hint)
+# trade1 = client.StockTrade(symbol='GOOG', quantity=10, trade_type='buy',
+#                            order_type='market', duration='good_till_cancelled', send_email=True)
+# # validate the trade
+# trade_info = trade1.validate()
+# print(trade_info)
+
+# # change the trade to a day order
+# trade1.duration = 'day_order'
+# # Another way to change the trade to a day order
+# trade1.duration = client.TradeProperties.Duration.DAY_ORDER()
+
+# # make it a limit order
+# trade1.order_type = 'limit 20.00'
+# # alternate way
+# trade1.order_type = client.TradeProperties.OrderType.LIMIT(20.00)
+
+# # validate it, see changes:
+# trade_info = trade1.validate()
+# if trade1.validated:
+#     print(trade_info)
+#     trade1.execute()
+
+# # View open orders / pending trades
+# client.refresh_portfolio()
+# open_orders = client.open_orders
+
+# # cancel the first open order / pending trade
+# open_orders[0].cancel()
+# client.refresh_portfolio()
