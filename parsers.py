@@ -279,7 +279,7 @@ class Parsers(object):
 
 
         stock_portfolio = Parsers.generate_stock_portfolio(portfolio_id)
-        short_portfolio = ShortPortfolio()
+        short_portfolio = Parsers.generate_stock_portfolio(portfolio_id, short=True)
         option_portfolio = OptionPortfolio()
 
         # TO DO
@@ -323,11 +323,26 @@ class Parsers(object):
         }
 
     @staticmethod
-    def generate_stock_portfolio(portfolio_id):
+    def generate_stock_portfolio(portfolio_id, short=False):
         session = Session()
-        resp = json.loads(session.post(API_URL,data=Queries.stock_holdings(portfolio_id)).text)
-        stock_data = resp['data']['readPortfolio']['holdings']
 
+        resp = None
+        stock_type = None
+        if short:
+            stock_type = 'short'
+            resp = session.post(API_URL,data=Queries.short_holdings(portfolio_id))
+
+
+        else:
+            stock_type = 'long'
+            resp = session.post(API_URL,data=Queries.stock_holdings(portfolio_id))
+
+        resp.raise_for_status()
+
+        resp_data = json.loads(resp.text)
+        
+        
+        stock_data = resp_data['data']['readPortfolio']['holdings']
         summary_data = stock_data['holdingsSummary']
         position_data = stock_data['executedTrades']
 
@@ -345,15 +360,25 @@ class Parsers(object):
                 'day_gain_percent': data['dayGainPercent'],
                 'total_gain_dollar': data['totalGainDollar'],
                 'total_gain_percent': data['totalGainPercent'],
+                'stock_type': stock_type
             }
+
             qw = QuoteWrapper(data['symbol'])
-            position_kwargs['stock_type'] = 'long'
             position_kwargs['quote_fn'] = qw.wrap_quote
+            stock_position = None
 
-            stock_position = LongPosition(**position_kwargs)
+            if short:
+                stock_position = ShortPosition(**position_kwargs)
+            else:
+                stock_position = LongPosition(**position_kwargs)
+            
             positions.append(stock_position)
+        
+        if short:
+            stock_portfolio = ShortPortfolio(positions=positions,**sub_portfolio_dict)
 
-        stock_portfolio = StockPortfolio(positions=positions,**sub_portfolio_dict)
+        else:
+            stock_portfolio = StockPortfolio(positions=positions,**sub_portfolio_dict)
 
         return stock_portfolio
 
