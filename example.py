@@ -21,6 +21,7 @@ print("-------------------------------------------------")
 
 
 print("\nOpen Orders:")
+# To cancel a pending trade, run open_order.cancel()
 for open_order in p.open_orders:
     print("-------------------------------------------------")
     print("Trade Type: %s" % open_order.trade_type)
@@ -30,6 +31,7 @@ for open_order in p.open_orders:
     print("-------------------------------------------------")
 
 stock_portfolio = p.stock_portfolio
+short_portfolio = p.short_portfolio
 
 print("\nStock Portfolio Details:")
 print("-------------------------------------------------")
@@ -38,8 +40,8 @@ print("Today's Gain: %s (%s%%)" % (stock_portfolio.day_gain_dollar, stock_portfo
 print("Total Gain: %s (%s%%)" % (stock_portfolio.total_gain_dollar, stock_portfolio.total_gain_percent))
 print("-------------------------------------------------")
 
-print("\nStock Portfolio Positions:")
-for position in p.stock_portfolio:
+print("\nLong Positions:")
+for position in stock_portfolio:
     print("-------------------------------------------------")
     print("Company: %s (%s)" % (position.description, position.symbol))
     print("Shares: %s" % position.quantity)
@@ -57,6 +59,25 @@ for position in p.stock_portfolio:
     print("\t------------------------------")
     print("-------------------------------------------------")
 
+
+print("\nShort Positions:")
+for position in short_portfolio:
+    print("-------------------------------------------------")
+    print("Company: %s (%s)" % (position.description, position.symbol))
+    print("Shares: %s" % position.quantity)
+    print("Purchase Price: %s" % position.purchase_price)
+    print("Current Price: %s" % position.current_price)
+    print("Today's Gain: %s (%s%%)" % (position.day_gain_dollar, position.day_gain_percent))
+    print("Total Gain: %s (%s%%)" % (position.total_gain_dollar, position.total_gain_percent))
+    print("Market/Total Value: %s" % position.market_value)
+    print("\t------------------------------")
+    print("\tQuote")
+    print("\t------------------------------")
+    quote = position.quote
+    for k,v in quote.__dict__.items():
+        print("\t%s: %s" % (k,v))
+    print("\t------------------------------")
+    print("-------------------------------------------------")
 
 # # get a quote
 # quote = client.get_stock_quote('GOOG')

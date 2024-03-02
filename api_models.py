@@ -153,7 +153,7 @@ class StockPortfolio(SubPortfolio, list):
 
 class ShortPortfolio(SubPortfolio, list):
     def __init__(self, positions=[], **kwargs):
-        
+        super().__init__(**kwargs)
         for p in positions:
             self.append(p)
 
@@ -245,9 +245,8 @@ class ShortPosition(Position):
 
     @property
     def quote(self):
-        if self._quote is None:
-            self._quote = self._quote_fn()
-        return self._quote
+        return self._quote_fn()
+    
 
     def cover(self, **trade_kwargs):
         trade_kwargs['symbol'] = self.symbol
