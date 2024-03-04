@@ -60,8 +60,6 @@ class Queries(object):
     @staticmethod
     def stock_quote(symbol):
         return json.dumps({"operationName":"CompanyProfile","variables":{"symbol":symbol},"query":"query CompanyProfile($symbol: String!) {\n  readStock(symbol: $symbol) {\n    ... on Stock {\n      technical {\n        volume\n        dayHighPrice\n        dayLowPrice\n        askPrice\n        bidPrice\n        __typename\n      }\n      fundamental {\n        lowestPriceLast52Weeks\n        highestPriceLast52Weeks\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n"})
-    
-    @staticmethod
                           
     @staticmethod
     def validate_stock_trade(trade):
