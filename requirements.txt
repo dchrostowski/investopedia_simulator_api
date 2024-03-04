@@ -1,5 +1,5 @@
 asttokens==2.4.1
-certifi==2019.3.9
+certifi==2023.7.22
 chardet==3.0.4
 charset-normalizer==3.3.2
 decorator==5.1.1
