@@ -101,7 +101,7 @@ trade3 = StockTrade(portfolio_id=p.portfolio_id, symbol='AMZN', quantity=1, tran
 trade3.validate()
 trade3.execute()
 
-time.sleep(10)
+
 client.refresh_portfolio()
 p = client.portfolio
 
@@ -120,6 +120,21 @@ for open_order in p.open_orders:
 
 
 
+stock_portfolio = p.stock_portfolio
+if len(stock_portfolio) > 0:
+    # first long position in portfolio
+    first_long_position = stock_portfolio[0]
+    symbol = first_long_position.symbol
+    quantity = first_long_position.quantity
+    
+    # execute trade to sell position in portfolio
+    first_long_position.sell()
+    client.refresh_portfolio()
+    p = client.portfolio
+    for oo in p.open_orders:
+        if oo.symbol == symbol and oo.quantity == quantity:
+            # cancel trade to sell first position in portfolio
+            oo.cancel()
 
 
 

@@ -325,6 +325,7 @@ class Parsers(object):
         for data in position_data:
             position_kwargs = {
                 'symbol': data['symbol'],
+                'portfolio_id': portfolio_id,
                 'quantity': data['quantity'],
                 'description': data['stock']['description'],
                 'purchase_price': data['purchasePrice'],
