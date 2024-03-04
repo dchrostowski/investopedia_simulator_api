@@ -186,7 +186,6 @@ class CancelOrderWrapper(object):
 
             return False
 
-        print("Order cancelled")
         return True
 
 class Parsers(object):
