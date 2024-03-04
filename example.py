@@ -2,6 +2,7 @@ from investopedia_api import InvestopediaApi, TradeExceedsMaxSharesException
 import json
 import datetime
 from IPython import embed
+from trade_common import OrderLimit, TransactionType, Expiration, StockTrade
 
 credentials = {}
 with open('credentials.json') as ifh:
@@ -18,6 +19,10 @@ print("Cash: %s" % p.cash)
 print("Buying Power: %s" % p.buying_power)
 print("Annual Return Percent: %s" % p.annual_return_pct)
 print("-------------------------------------------------")
+
+
+
+
 
 
 print("\nOpen Orders:")
@@ -78,6 +83,42 @@ for position in short_portfolio:
         print("\t%s: %s" % (k,v))
     print("\t------------------------------")
     print("-------------------------------------------------")
+
+# Make a stock trade
+    
+# Buy 2 shares of GOOG with limit $100 and no expiration
+tt1 = TransactionType.BUY()
+ol1 = OrderLimit.LIMIT(100)
+exp1 = Expiration.GOOD_UNTIL_CANCELLED()
+trade1 = StockTrade(portfolio_id=p.portfolio_id, symbol="GOOG", quantity=2, transaction_type=tt1, order_limit=ol1, expiration=exp1)
+trade1.validate()
+trade1.execute()
+
+# BUY 3 shares of AAPL at market value with expiration set to end of day
+# defaults order_limit to OrderLimit.MARKET() and expiration to Expiration.END_OF_DAY())
+trade2 = StockTrade(portfolio_id=p.portfolio_id, symbol='AAPL', quantity=3, transaction_type=TransactionType.BUY())
+trade2.validate()
+trade2.execute()
+
+client.refresh_portfolio()
+for open_order in p.open_orders:
+    if open_order.symbol == 'GOOG' and open_order.quantity == 2:
+        # cancel trade1 from above
+        open_order.cancel()
+    
+    if open_order.symbol == 'AAPL' and open_order.quantity == 3:
+        open_order.cancel()
+
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------------
+
 
 # # get a quote
 # quote = client.get_stock_quote('GOOG')
