@@ -32,9 +32,12 @@ class OpenOrder(object):
         self.order_price = order_price
         self.active = True
 
-    def cancel(self):
-        self.active = False
-        return self.cancel_fn()
+    def cancel(self):        
+        cancelled =  self.cancel_fn()
+        if cancelled:
+            self.active = False
+            print("Order ID %s cancelled!" % self.order_id)
+
 
 
 class SubPortfolio(object):

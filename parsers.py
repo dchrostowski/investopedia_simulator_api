@@ -16,6 +16,7 @@ from ratelimit import limits,sleep_and_retry
 from decimal import Decimal
 import logging
 from IPython import embed
+import warnings
 
 @sleep_and_retry
 @limits(calls=6,period=20)
@@ -174,7 +175,18 @@ class CancelOrderWrapper(object):
     @limits(calls=3,period=20)
     def wrap_cancel(self):
         session = Session()
-        session.post(API_URL,Queries.cancel_order(self.order_id))        
+        resp = session.post(API_URL,Queries.cancel_order(self.order_id))
+        resp.raise_for_status()
+
+        resp_json = json.loads(resp.text)
+        if resp_json['data']['submitCancelTrade'].get('errorMessages',None) is not None:
+            errors = resp_json['data']['submitCancelTrade']['errorMessages']
+            for error in errors:
+                warnings.warn(error)
+
+            return False
+
+        return True
 
 class Parsers(object):
     @staticmethod
@@ -220,45 +232,6 @@ class Parsers(object):
 
 
                 open_orders.append(OpenOrder(**order_dict))
-        
-        # open_trades_resp = session.get(UrlHelper.route('opentrades'))
-        # open_tree = html.fromstring(open_trades_resp.text)
-        # open_trade_rows = open_tree.xpath('//table[@class="table1"]/tbody/tr[@class="table_data"]/td[2]/a/parent::td/parent::tr')
-
-        # ot_xpath_map = {
-        #     'order_id': 'td[1]/text()',
-        #     'symbol': 'td[5]/a/text()',
-        #     'cancel_fn': 'td[2]/a/@href',
-        #     'order_date': 'td[3]/text()',
-        #     'quantity': 'td[6]/text()',
-        #     'order_price': 'td[7]/text()',
-        #     'trade_type' : 'td[4]/text()'
-        
-        # }
-
-        # open_orders = []
-
-        # for tr in open_trade_rows:
-        #     fon = lambda x: x[0] if len(x)> 0 else None
-        #     open_order_dict = {k:fon(tr.xpath(v)) for k,v in ot_xpath_map.items()}
-        #     symbol_match = re.search(r'^([^\.\d]+)',open_order_dict['symbol'])
-        #     if symbol_match:
-        #         open_order_dict['symbol'] = symbol_match.group(1)
-        #     if open_order_dict['order_price'] == 'n/a':
-        #         oid = open_order_dict['order_id']
-        #         quantity = int(open_order_dict['quantity'])
-        #         pxpath = '//table[@id="stock-portfolio-table"]//tr[contains(@style,"italic")]//span[contains(@id,"%s")]/ancestor::tr/td[5]/span/text()' % oid
-        #         cancel_link = open_order_dict['cancel_fn']
-        #         wrapper = CancelOrderWrapper(cancel_link)
-        #         open_order_dict['cancel_fn'] = wrapper.wrap_cancel
-        #         try:
-        #             current_price = coerce_value(fon(portfolio_tree.xpath(pxpath)),Decimal)
-        #             open_order_dict['order_price'] = current_price * quantity
-        #         except Exception as e:
-        #             warn("Unable to parse open trade value for %s" % open_order_dict['symbol'])
-        #             open_order_dict['order_price'] = 0
-                
-        #         open_orders.append(OpenOrder(**open_order_dict))
         return open_orders
 
 

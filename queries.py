@@ -59,5 +59,28 @@ class Queries(object):
 
     @staticmethod
     def stock_quote(symbol):
-        return json.dumps({"operationName":"CompanyProfile","variables":{"symbol":symbol},"query":"query CompanyProfile($symbol: String!) {\n  readStock(symbol: $symbol) {\n    ... on Stock {\n      technical {\n        volume\n        dayHighPrice\n        dayLowPrice\n        askPrice\n        bidPrice\n        __typename\n      }\n      fundamental {\n        lowestPriceLast52Weeks\n        highestPriceLast52Weeks\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n"}
+        return json.dumps({"operationName":"CompanyProfile","variables":{"symbol":symbol},"query":"query CompanyProfile($symbol: String!) {\n  readStock(symbol: $symbol) {\n    ... on Stock {\n      technical {\n        volume\n        dayHighPrice\n        dayLowPrice\n        askPrice\n        bidPrice\n        __typename\n      }\n      fundamental {\n        lowestPriceLast52Weeks\n        highestPriceLast52Weeks\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n"})
+                          
+    @staticmethod
+    def validate_stock_trade(trade):
+        # portfolio_id, expiry, limit, quantity, symbol, transaction_type
+        expiry = trade.expiration
+        limit = trade.order_limit
+        portfolio_id = trade.portfolio_id
+        quantity = trade.quantity
+        symbol = trade.symbol
+        transaction_type = trade.transaction_type
+
+        return json.dumps({"operationName":"PreviewStockTrade","variables":{"input":{"expiry":expiry,"limit":limit,"portfolioId":portfolio_id,"quantity":quantity,"symbol":symbol,"transactionType":transaction_type}},"query":"query PreviewStockTrade($input: TradeEntityInput!) {\n  previewStockTrade(stockTradeEntityInput: $input) {\n    ... on TradeDetails {\n      bill {\n        commission\n        price\n        quantity\n        total\n        __typename\n      }\n      __typename\n    }\n    ... on TradeInvalidEntity {\n      errorMessages\n      __typename\n    }\n    ... on TradeInvalidTransaction {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"})
+    
+    @staticmethod
+    def execute_stock_trade(trade):
+        expiry = trade.expiration
+        limit = trade.order_limit
+        portfolio_id = trade.portfolio_id
+        quantity = trade.quantity
+        symbol = trade.symbol
+        transaction_type = trade.transaction_type
+        
+        return json.dumps({"operationName":"StockTrade","variables":{"input":{"expiry":expiry,"limit":limit,"portfolioId":portfolio_id,"quantity":quantity,"symbol":symbol,"transactionType":transaction_type}},"query":"mutation StockTrade($input: TradeEntityInput!) {\n  submitStockTrade(stockTradeEntityInput: $input) {\n    ... on TradeInvalidEntity {\n      errorMessages\n      __typename\n    }\n    ... on TradeInvalidTransaction {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"}
 )
