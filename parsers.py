@@ -3,7 +3,7 @@ from api_models import Portfolio,StockPortfolio,ShortPortfolio,OptionPortfolio,O
 from api_models import StockQuote
 from queries import Queries
 from constants import OPTIONS_QUOTE_URL, API_URL
-from options import OptionChainLookup, OptionChain, OptionContract
+from options import OptionChainLookup, OptionChain, OptionContract, OptionScope
 from session_singleton import Session
 from utils import UrlHelper, coerce_value
 from lxml import html
@@ -399,3 +399,16 @@ class Parsers(object):
                 option_pos = OptionPosition(oc,quote_fn,stock_type, **position_data)
 
                 option_portfolio.append(option_pos)
+
+
+    @staticmethod
+    def parse_option_chain(symbol):
+        session = Session()
+        exp_resp = session.post(API_URL,data=Queries.option_expiration_dates(symbol))
+        exp_resp.raise_for_status()
+
+        exp_json = json.loads(exp_resp.text)
+        
+
+
+

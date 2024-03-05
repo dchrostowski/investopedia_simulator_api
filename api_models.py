@@ -260,8 +260,12 @@ class ShortPosition(Position):
     def cover(self, **trade_kwargs):
         trade_kwargs['symbol'] = self.symbol
         trade_kwargs.setdefault('quantity', self.quantity)
-        trade_kwargs['trade_type'] = 'buy_to_cover'
-        return StockTrade(**trade_kwargs)
+        trade_kwargs['transaction_type'] = TransactionType.BUY_TO_COVER()
+        trade_kwargs['portfolio_id'] = self.portfolio_id
+        cover_trade = StockTrade(**trade_kwargs)
+        cover_trade.validate()
+        cover_trade.execute()
+        return cover_trade
 
 
 class OptionPosition(Position):

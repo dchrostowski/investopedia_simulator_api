@@ -16,14 +16,12 @@ import warnings
 class InvalidTradeTypeException(Exception):
     pass
 
-
 class InvalidOrderTypeException(Exception):
     pass
 
 
 class InvalidOrderDurationException(Exception):
     pass
-
 
 class TradeNotValidatedException(Exception):
     pass

@@ -82,5 +82,17 @@ class Queries(object):
         symbol = trade.symbol
         transaction_type = trade.transaction_type
         
-        return json.dumps({"operationName":"StockTrade","variables":{"input":{"expiry":expiry,"limit":limit,"portfolioId":portfolio_id,"quantity":quantity,"symbol":symbol,"transactionType":transaction_type}},"query":"mutation StockTrade($input: TradeEntityInput!) {\n  submitStockTrade(stockTradeEntityInput: $input) {\n    ... on TradeInvalidEntity {\n      errorMessages\n      __typename\n    }\n    ... on TradeInvalidTransaction {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"}
+        return json.dumps({"operationName":"StockTrade","variables":{"input":{"expiry":expiry,"limit":limit,"portfolioId":portfolio_id,"quantity":quantity,"symbol":symbol,"transactionType":transaction_type}},"query":"mutation StockTrade($input: TradeEntityInput!) {\n  submitStockTrade(stockTradeEntityInput: $input) {\n    ... on TradeInvalidEntity {\n      errorMessages\n      __typename\n    }\n    ... on TradeInvalidTransaction {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"})
+    
+    @staticmethod
+    def option_expiration_dates(symbol):
+        return json.dumps({"operationName":"OptionExpiries","variables":{"symbol":symbol},"query":"query OptionExpiries($symbol: String!) {\n  readOptionsExpirationDates(symbol: $symbol) {\n    ... on OptionsExpirationDates {\n      expirationDates\n      __typename\n    }\n    ... on SymbolNotFoundResponse {\n      errorMessages\n      __typename\n    }\n    ... on InvalidSymbolResponse {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"})
+
+    @staticmethod
+    def options_by_expiration(symbol,expiration,option_scope):
+        options_limit = 1000
+        if option_scope == 'NEAR_THE_MONEY':
+            options_limit = 6
+
+        return json.dumps({"operationName":"OptionsByExpiration","variables":{"symbol":"AYI","expiration":expiration,"optionsLimit":options_limit,"optionFilter":option_scope},"query":"query OptionsByExpiration($symbol: String!, $expiration: Long!, $optionsLimit: Int!, $optionFilter: OptionStrikePriceRange) {\n  readStock(symbol: $symbol) {\n    ... on Stock {\n      technical {\n        lastPrice\n        __typename\n      }\n      options(\n        optionSearchInput: {limit: $optionsLimit, optionFilter: {expirationDate: $expiration, strikePriceRange: $optionFilter}}\n      ) {\n        ... on OptionsListsResponse {\n          callOptions {\n            list {\n              symbol\n              strikePrice\n              lastPrice\n              dayChangePrice\n              dayChangePercent\n              dayLowPrice\n              dayHighPrice\n              bidPrice\n              askPrice\n              volume\n              openInterest\n              isInTheMoney\n              __typename\n            }\n            __typename\n          }\n          putOptions {\n            list {\n              symbol\n              strikePrice\n              lastPrice\n              dayChangePrice\n              dayChangePercent\n              dayLowPrice\n              dayHighPrice\n              bidPrice\n              askPrice\n              volume\n              openInterest\n              isInTheMoney\n              __typename\n            }\n            __typename\n          }\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    ... on InvalidSymbolResponse {\n      errorMessages\n      __typename\n    }\n    ... on SymbolNotFoundResponse {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"}
 )

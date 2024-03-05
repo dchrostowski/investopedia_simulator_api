@@ -10,10 +10,29 @@ class InvalidOptionChainException(Exception):
 class InvalidOptionException(Exception):
     pass
 
+class OptionScope(object):
 
+    @property
+    @staticmethod
+    def IN_THE_MONEY():
+        return 'IN_THE_MONEY'
+    
+    @staticmethod
+    @property
+    def NEAR_THE_MONEY():
+        return 'NEAR_THE_MONEY'
+    
+    @property
+    @staticmethod
+    def OUT_OF_THE_MONEY():
+        return 'OUT_OF_THE_MONEY'
+    
+    @property
+    @staticmethod
+    def ALL():
+        return 'ALL'
 
-
-
+    
 class OptionChainLookup(dict):
     def __init__(self,symbol,*option_chains):
         self.expirations = {}
