@@ -2,6 +2,7 @@ from api_models import Portfolio
 from parsers import Parsers, option_lookup, stock_quote
 from trade_common import Expiration, OrderLimit, TransactionType, Trade, StockTrade
 from trade_common import TradeExceedsMaxSharesException, TradeNotValidatedException, InvalidOrderDurationException, InvalidOrderTypeException, InvalidTradeTypeException
+from options import OptionChain
 from option_trade import OptionTrade
 # from stock_trade import StockTrade
 from session_singleton import Session
@@ -74,8 +75,8 @@ class InvestopediaApi(object):
             pass
 
     @staticmethod
-    def get_option_chain(symbol, strike_price_proximity=3):
-        return option_lookup(symbol, strike_price_proximity=strike_price_proximity)
+    def get_option_chain(symbol):
+        return OptionChain(symbol)
 
     @staticmethod
     def get_stock_quote(symbol):

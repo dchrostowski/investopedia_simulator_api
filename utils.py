@@ -34,6 +34,7 @@ def validate_and_execute_trade(trade,adjust_shares=True):
     else:
         warnings.warn("Unable to validate trade.")
 
+
 def date_regex(input_date):
     datetime_obj = None
     try:

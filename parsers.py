@@ -421,7 +421,11 @@ class Parsers(object):
             ntm_call_options = ntm_options['callOptions']['list']
             ntm_put_options = ntm_options['putOptions']['list']
 
-            
+            for co_kwargs in ntm_call_options:
+                co_kwargs['expiration'] = expiration
+                co_kwargs['is_put'] = False
+                call_option = OptionContract(**co_kwargs)
+
             embed()
         
 

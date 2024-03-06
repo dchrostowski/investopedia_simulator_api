@@ -156,7 +156,7 @@ if len(short_portfolio) > 0:
             oo.cancel()
 
 # Gets all available option contracts for AAPL
-oc = OptionChain('AAPL')
+oc = client.get_option_chain('AAPL')
 all_options = oc.all()
 print("There are %s available option contracts for AAPL" % len(all_options))
 
