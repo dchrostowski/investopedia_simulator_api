@@ -229,7 +229,7 @@ class LongPosition(Position):
     def sell(self, **trade_kwargs):
         trade_kwargs['symbol'] = self.symbol
         trade_kwargs.setdefault('quantity', self.quantity)
-        trade_kwargs['transaction_type'] = TransactionType.SELL()
+        trade_kwargs['transaction_type'] = TransactionType.SELL
         trade_kwargs['portfolio_id'] = self.portfolio_id
         sell_trade = StockTrade(**trade_kwargs)
         sell_trade.validate()
@@ -260,7 +260,7 @@ class ShortPosition(Position):
     def cover(self, **trade_kwargs):
         trade_kwargs['symbol'] = self.symbol
         trade_kwargs.setdefault('quantity', self.quantity)
-        trade_kwargs['transaction_type'] = TransactionType.BUY_TO_COVER()
+        trade_kwargs['transaction_type'] = TransactionType.BUY_TO_COVER
         trade_kwargs['portfolio_id'] = self.portfolio_id
         cover_trade = StockTrade(**trade_kwargs)
         cover_trade.validate()

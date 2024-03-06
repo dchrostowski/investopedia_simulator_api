@@ -50,30 +50,11 @@ class DuplicateTradeException(Exception):
 #     return wrapper
 
 
-class TransactionType(str):
-    @classmethod
-    def BUY_TO_OPEN(cls):
-        return cls('BUY_TO_OPEN')
-
-    @classmethod
-    def SELL_TO_CLOSE(cls):
-        return cls('SELL_TO_CLOSE')
-
-    @classmethod
-    def BUY(cls):
-        return cls('BUY')
-
-    @classmethod
-    def SELL(cls):
-        return cls('SELL')
-
-    @classmethod
-    def SELL_SHORT(cls):
-        return cls('SELL_SHORT')
-
-    @classmethod
-    def BUY_TO_COVER(cls):
-        return cls('BUY_TO_COVER')
+class TransactionType(object):
+    BUY = 'BUY'
+    SELL = 'SELL'
+    SELL_SHORT = 'SELL_SHORT'
+    BUY_TO_COVER = 'BUY_TO_COVER'
 
 class OrderLimit(dict):
     @classmethod

@@ -86,7 +86,7 @@ for position in short_portfolio:
 # Make a stock trade
     
 # Buy 2 shares of GOOG with limit $100 and no expiration
-tt1 = TransactionType.BUY()
+tt1 = TransactionType.BUY
 ol1 = OrderLimit.LIMIT(100)
 exp1 = Expiration.GOOD_UNTIL_CANCELLED()
 trade1 = StockTrade(portfolio_id=p.portfolio_id, symbol="GOOG", quantity=2, transaction_type=tt1, order_limit=ol1, expiration=exp1)
@@ -95,12 +95,12 @@ trade1.execute()
 
 # Buy 3 shares of AAPL at market value with expiration set to end of day
 # defaults order_limit to OrderLimit.MARKET() and expiration to Expiration.END_OF_DAY())
-trade2 = StockTrade(portfolio_id=p.portfolio_id, symbol='AAPL', quantity=3, transaction_type=TransactionType.BUY())
+trade2 = StockTrade(portfolio_id=p.portfolio_id, symbol='AAPL', quantity=3, transaction_type=TransactionType.BUY)
 trade2.validate()
 trade2.execute()
 
 # short sell 1 share of AMZN
-trade3 = StockTrade(portfolio_id=p.portfolio_id, symbol='AMZN', quantity=1, transaction_type=TransactionType.SELL_SHORT())
+trade3 = StockTrade(portfolio_id=p.portfolio_id, symbol='AMZN', quantity=1, transaction_type=TransactionType.SELL_SHORT)
 trade3.validate()
 trade3.execute()
 

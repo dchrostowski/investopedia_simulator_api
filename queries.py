@@ -63,7 +63,6 @@ class Queries(object):
                           
     @staticmethod
     def validate_stock_trade(trade):
-        # portfolio_id, expiry, limit, quantity, symbol, transaction_type
         expiry = trade.expiration
         limit = trade.order_limit
         portfolio_id = trade.portfolio_id
@@ -94,5 +93,28 @@ class Queries(object):
         if option_scope == 'NEAR_THE_MONEY':
             options_limit = 6
 
-        return json.dumps({"operationName":"OptionsByExpiration","variables":{"symbol":symbol,"expiration":expiration,"optionsLimit":options_limit,"optionFilter":option_scope},"query":"query OptionsByExpiration($symbol: String!, $expiration: Long!, $optionsLimit: Int!, $optionFilter: OptionStrikePriceRange) {\n  readStock(symbol: $symbol) {\n    ... on Stock {\n      technical {\n        lastPrice\n        __typename\n      }\n      options(\n        optionSearchInput: {limit: $optionsLimit, optionFilter: {expirationDate: $expiration, strikePriceRange: $optionFilter}}\n      ) {\n        ... on OptionsListsResponse {\n          callOptions {\n            list {\n              symbol\n              strikePrice\n              lastPrice\n              dayChangePrice\n              dayChangePercent\n              dayLowPrice\n              dayHighPrice\n              bidPrice\n              askPrice\n              volume\n              openInterest\n              isInTheMoney\n              __typename\n            }\n            __typename\n          }\n          putOptions {\n            list {\n              symbol\n              strikePrice\n              lastPrice\n              dayChangePrice\n              dayChangePercent\n              dayLowPrice\n              dayHighPrice\n              bidPrice\n              askPrice\n              volume\n              openInterest\n              isInTheMoney\n              __typename\n            }\n            __typename\n          }\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    ... on InvalidSymbolResponse {\n      errorMessages\n      __typename\n    }\n    ... on SymbolNotFoundResponse {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"}
-)
+        return json.dumps({"operationName":"OptionsByExpiration","variables":{"symbol":symbol,"expiration":expiration,"optionsLimit":options_limit,"optionFilter":option_scope},"query":"query OptionsByExpiration($symbol: String!, $expiration: Long!, $optionsLimit: Int!, $optionFilter: OptionStrikePriceRange) {\n  readStock(symbol: $symbol) {\n    ... on Stock {\n      technical {\n        lastPrice\n        __typename\n      }\n      options(\n        optionSearchInput: {limit: $optionsLimit, optionFilter: {expirationDate: $expiration, strikePriceRange: $optionFilter}}\n      ) {\n        ... on OptionsListsResponse {\n          callOptions {\n            list {\n              symbol\n              strikePrice\n              lastPrice\n              dayChangePrice\n              dayChangePercent\n              dayLowPrice\n              dayHighPrice\n              bidPrice\n              askPrice\n              volume\n              openInterest\n              isInTheMoney\n              __typename\n            }\n            __typename\n          }\n          putOptions {\n            list {\n              symbol\n              strikePrice\n              lastPrice\n              dayChangePrice\n              dayChangePercent\n              dayLowPrice\n              dayHighPrice\n              bidPrice\n              askPrice\n              volume\n              openInterest\n              isInTheMoney\n              __typename\n            }\n            __typename\n          }\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    ... on InvalidSymbolResponse {\n      errorMessages\n      __typename\n    }\n    ... on SymbolNotFoundResponse {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"})
+    
+    @staticmethod
+    def validate_option_trade(trade):
+        expiry = trade.expiration
+        limit = trade.order_limit
+        portfolio_id = trade.portfolio_id
+        quantity = trade.quantity
+        symbol = trade.symbol
+        transaction_type = trade.transaction_type
+
+        return json.dumps({"operationName":"PreviewOptionTrade","variables":{"input":{"expiry":expiry,"limit":limit,"portfolioId":portfolio_id,"quantity":quantity,"symbol":symbol,"transactionType":transaction_type}},"query":"query PreviewStockTrade($input: TradeEntityInput!) {\n  previewStockTrade(stockTradeEntityInput: $input) {\n    ... on TradeDetails {\n      bill {\n        commission\n        price\n        quantity\n        total\n        __typename\n      }\n      __typename\n    }\n    ... on TradeInvalidEntity {\n      errorMessages\n      __typename\n    }\n    ... on TradeInvalidTransaction {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"})
+    
+    @staticmethod
+    def execute_option_trade(trade):
+        expiry = trade.expiration
+        limit = trade.order_limit
+        portfolio_id = trade.portfolio_id
+        quantity = trade.quantity
+        symbol = trade.symbol
+        transaction_type = trade.transaction_type
+        
+        return json.dumps({"operationName":"OptionTrade","variables":{"input":{"expiry":expiry,"limit":limit,"portfolioId":portfolio_id,"quantity":quantity,"symbol":symbol,"transactionType":transaction_type}},"query":"mutation StockTrade($input: TradeEntityInput!) {\n  submitStockTrade(stockTradeEntityInput: $input) {\n    ... on TradeInvalidEntity {\n      errorMessages\n      __typename\n    }\n    ... on TradeInvalidTransaction {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"})
+
+
