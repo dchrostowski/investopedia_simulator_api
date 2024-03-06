@@ -208,9 +208,9 @@ class Parsers(object):
             open_trades = open_trade_resp['data']['readPortfolio']['holdings']['pendingTrades']
             
             for open_trade in open_trades:
+                
                 if open_trade['cancelDate'] is not None:
                     continue
-            
                 order_dict = {
                     'order_id': open_trade['tradeId'],
                     'symbol': open_trade['symbol'],
@@ -408,6 +408,21 @@ class Parsers(object):
         exp_resp.raise_for_status()
 
         exp_json = json.loads(exp_resp.text)
+        for expiration in exp_json['data']['readOptionsExpirationDates']['expirationDates']:
+            ntm_options_resp = session.post(API_URL, data=Queries.options_by_expiration(symbol,expiration,OptionScope.NEAR_THE_MONEY))
+            itm_options_resp = session.post(API_URL, data=Queries.options_by_expiration(symbol,expiration,OptionScope.IN_THE_MONEY))
+            otm_options_resp = session.post(API_URL, data=Queries.options_by_expiration(symbol,expiration,OptionScope.OUT_OF_THE_MONEY))
+
+            ntm_options_resp.raise_for_status()
+            itm_options_resp.raise_for_status()
+            otm_options_resp.raise_for_status()
+
+            ntm_options = json.loads(ntm_options_resp.text)['data']['readStock']['options']
+            ntm_call_options = ntm_options['callOptions']['list']
+            ntm_put_options = ntm_options['putOptions']['list']
+
+            
+            embed()
         
 
 

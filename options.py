@@ -1,8 +1,13 @@
 import re
 from constants import OPTION_MONTH_CODES
-import datetime
+from datetime import datetime, timedelta
 import calendar
 from typing import List
+from queries import Queries
+from session_singleton import Session
+from constants import API_URL
+import json
+from IPython import embed
 
 class InvalidOptionChainException(Exception):
     pass
@@ -11,26 +16,10 @@ class InvalidOptionException(Exception):
     pass
 
 class OptionScope(object):
-
-    @property
-    @staticmethod
-    def IN_THE_MONEY():
-        return 'IN_THE_MONEY'
-    
-    @staticmethod
-    @property
-    def NEAR_THE_MONEY():
-        return 'NEAR_THE_MONEY'
-    
-    @property
-    @staticmethod
-    def OUT_OF_THE_MONEY():
-        return 'OUT_OF_THE_MONEY'
-    
-    @property
-    @staticmethod
-    def ALL():
-        return 'ALL'
+    IN_THE_MONEY = 'IN_THE_MONEY'
+    NEAR_THE_MONEY = 'NEAR_THE_MONEY'
+    OUT_OF_THE_MONEY = 'OUT_OF_THE_MONEY'
+    ALL = 'ALL'
 
     
 class OptionChainLookup(dict):
@@ -46,8 +35,8 @@ class OptionChainLookup(dict):
 
     def search_by_month_and_year(self,month,year):
         last_day = calendar.monthrange(year,month)[1]
-        start_date = datetime.datetime(year,month,1)
-        end_date = datetime.datetime(year,month,last_day)
+        start_date = datetime(year,month,1)
+        end_date = datetime(year,month,last_day)
         return self.search_by_daterange(start_date,end_date)
 
     def search_by_daterange(self,start_date,end_date):
@@ -56,66 +45,133 @@ class OptionChainLookup(dict):
                 yield self.expirations[exp_date]
 
 
+class OptionChain(object):
+    def __init__(self,symbol):
+        self.expirations = []
+        self.options = {}
+        self.chain = {}
+        symbol = symbol.upper()
+
+        session = Session()
+        exp_resp = session.post(API_URL,data=Queries.option_expiration_dates(symbol))
+        exp_resp.raise_for_status()
+
+
+        exp_json = json.loads(exp_resp.text)
+        for expiration in exp_json['data']['readOptionsExpirationDates']['expirationDates']:
+            self.expirations.append(expiration)
+
+        for expiration in self.expirations:
+            self.chain[expiration] = {}
+            option_scopes = [OptionScope.IN_THE_MONEY, OptionScope.OUT_OF_THE_MONEY, OptionScope.NEAR_THE_MONEY]
+            for os in option_scopes:
+                self.chain[expiration][os] = {'calls': [], 'puts': []}
+                options_resp = session.post(API_URL, data=Queries.options_by_expiration(symbol,expiration,os))
+                options_resp.raise_for_status()
+                options = json.loads(options_resp.text)['data']['readStock']['options']
+                call_options = options['callOptions']['list']
+                put_options = options['putOptions']['list']
+                for co_kwargs in call_options:
+                    co_kwargs['expiration'] = expiration
+                    co_kwargs['is_put'] = False
+                    call_option = OptionContract(**co_kwargs)
+                    self.options[call_option.symbol] = call_option
+                    self.chain[expiration][os]['calls'].append(call_option.symbol)
+
+                for po_kwargs in put_options:
+                    po_kwargs['expiration'] = expiration
+                    po_kwargs['is_put'] = True
+                    put_option = OptionContract(**po_kwargs)
+                    self.options[put_option.symbol] = put_option
+                    self.chain[expiration][os]['puts'].append(put_option.symbol)
+
+    def search(
+        self,
+        after=datetime.now() - timedelta(days=365),
+        before=datetime.now() + timedelta(days=365),
+        scope=OptionScope.ALL,
+        calls=True,
+        puts=True
+        ):
+
+        eligible_expirations = []
+        eligible_scopes = []
+        eligible_types = []
+
+
+        after_ts = after.timestamp()
+        before_ts = before.timestamp()
+
+        
+        for exp in self.expirations:
+            if exp/1000 >= after_ts and exp/1000 <= before_ts:
+                eligible_expirations.append(exp)
+        
+        if scope == OptionScope.ALL:
+            eligible_scopes = [OptionScope.IN_THE_MONEY, OptionScope.OUT_OF_THE_MONEY, OptionScope.NEAR_THE_MONEY]
+        else:
+            eligible_scopes = [scope]
+
+        if calls:
+            eligible_types.append('calls')
+        
+        if puts:
+            eligible_types.append('puts')
+
+        filtered_options = []
+        for exp in eligible_expirations:
+            filtered_expirations = self.chain[exp]
+            for esc in eligible_scopes:
+                filtered_scopes = filtered_expirations[esc]
+                for ety in eligible_types:
+                    filtered_option_symbols = filtered_scopes[ety]
+                    for opt_symbol in filtered_option_symbols:
+                        filtered_options.append(self.options[opt_symbol])
+
+        return filtered_options
+    
+
+    def all(self):
+        return [v for v in self.options.values()]
+    
+    def lookup_by_symbol(self,symbol):
+        return self.options.get(symbol,None)
+    
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
 class OptionContract(object):
-    def __init__(self,option_dict=None,contract_name=None):
-        if option_dict is not None:
-            self.raw = option_dict
-            self.contract_name = option_dict['Symbol']
-            self.base_symbol = option_dict['BaseSymbol']
-            self.contract_type = option_dict['Type']
-            self.expiration = datetime.datetime.strptime(option_dict['ExpirationDate'],'%m/%d/%Y')
-            self.strike_price = option_dict['StrikePrice']
-            self.last = option_dict['Last']
-            self.bid = option_dict['Bid']
-            self.ask = option_dict['Ask']
-            self.volume = option_dict['Volume']
-            self.open_int = option_dict['OpenInterest']
+    def __init__(self,**kwargs):
+        self.symbol = kwargs['symbol']
+        self.strike_price = kwargs['strikePrice']
+        self.last = kwargs['lastPrice']
+        self.day_change = kwargs['dayChangePrice']
+        self.day_change_percent = kwargs['dayChangePercent']
+        self.day_low = kwargs['dayLowPrice']
+        self.day_high = kwargs['dayHighPrice']
+        self.bid = kwargs['bidPrice']
+        self.ask = kwargs['askPrice']
+        self.volume = kwargs['volume']
+        self.open_interest = kwargs['openInterest']
+        self.in_the_money = kwargs['isInTheMoney']
+        self.expiration = datetime.fromtimestamp(kwargs['expiration']/1000)
+        self.is_put = kwargs['is_put']
 
-        elif contract_name is not None:
-            re_search = re.search(r'^(\D+)(\d\d)(\d\d)([A-X])([\d\.]+)$',contract_name)
-            if re_search is None or len(re_search.groups()) != 5:
-                raise InvalidOptionException("Could not parse option symbol '%s'" % symbol)
-            self.base_symbol = re_search.group(1)
-            exp_year = int(int(re_search.group(2)) + 2000)
-            exp_day = int(re_search.group(3))
-            month_code = re_search.group(4)
-            if month_code not in OPTION_MONTH_CODES:
-                raise InvalidOptionException("Invalid month code '%s'" % month_code)
-            self.strike_price = float(re_search.group(5))
 
-            month_and_type_info = OPTION_MONTH_CODES[month_code]
-            exp_month = month_and_type_info['month']
-
-            self.contract_type = month_and_type_info['type']
-            self.expiration = datetime.date(exp_year,exp_month,exp_day)
-            self.contract_name = contract_name
-            
-            self.last = None
-            self.bid = None
-            self.ask = None
-            self.volume = None
-            self.open_int = None
-
-    def lazy_values(self):
-        return (self.last,self.bid,self.ask,self.volume,self.open_int)
-
-    def __repr__(self):
-        return str({
-            'strike_price': self.strike_price,
-            'contract_name': self.contract_name,
-            'last': self.last,
-            'bid': self.bid,
-            'ask': self.ask,
-            'volume': self.volume,
-            'open_int': self.open_int
-        })
 
 # for type hinting
 OptionContractList = List[OptionContract]
-
-class OptionChain(object):
-    def __init__(self,expiration_date: str,calls: OptionContractList, puts: OptionContractList):
-        self.expiration_date = datetime.datetime.strptime(expiration_date,"%m/%d/%Y")
-        self.expiration_date_str = expiration_date
-        self.calls = calls
-        self.puts = puts
