@@ -1,8 +1,8 @@
 from investopedia_api import InvestopediaApi
 import json
 from datetime import datetime, timedelta
-from trade_common import OrderLimit, TransactionType, Expiration, StockTrade,OptionTrade
-from options import OptionChain, OptionScope
+from api_models import OptionScope
+from trade_common import OrderLimit, TransactionType, Expiration, StockTrade, OptionTrade
 
 credentials = {}
 with open('credentials.json') as ifh:

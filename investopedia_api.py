@@ -1,6 +1,6 @@
 from parsers import Parsers, stock_quote
 from trade_common import Expiration, OrderLimit, TransactionType, OptionTrade, StockTrade
-from options import OptionChain
+from api_models import OptionChain
 from session_singleton import Session
 from utils import TaskQueue, validate_and_execute_trade
 import warnings
