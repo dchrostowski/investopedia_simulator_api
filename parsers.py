@@ -1,8 +1,8 @@
-from api_models import Position,LongPosition, ShortPosition, OptionPosition
+from api_models import LongPosition, ShortPosition, OptionPosition
 from api_models import Portfolio,StockPortfolio,ShortPortfolio,OptionPortfolio,OpenOrder
 from api_models import StockQuote
 from queries import Queries
-from constants import OPTIONS_QUOTE_URL, API_URL
+from constants import API_URL
 from options import OptionChain, OptionContract, OptionScope
 from session_singleton import Session
 from lxml import html

@@ -1,7 +1,3 @@
-
-from constants import PATHS, BASE_URL
-#import stock_trade.TradeType
-from urllib import parse
 import re
 from functools import wraps
 import inspect

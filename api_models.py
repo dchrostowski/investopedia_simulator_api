@@ -51,8 +51,6 @@ class SubPortfolio(object):
 
             if symbol.upper() == p.symbol:
                 return p
-            
-            
 
 class Portfolio(object):
     allowable_portfolios = {
