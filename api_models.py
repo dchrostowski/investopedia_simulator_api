@@ -284,10 +284,12 @@ class OptionPosition(Position):
         return self.contract
 
     def close(self, **trade_kwargs):
-        trade_kwargs['contract'] = self.contract
+        trade_kwargs['symbol'] = self.symbol
         trade_kwargs.setdefault('quantity', self.quantity)
-        trade_kwargs['trade_type'] = 'sell to close'
-        return OptionTrade(**trade_kwargs)
+        trade_kwargs['transaction_type'] = TransactionType.SELL
+        close_trade = OptionTrade(**trade_kwargs)
+        close_trade.validate()
+        close_trade.execute()
 
 
 class StockQuote(object):
