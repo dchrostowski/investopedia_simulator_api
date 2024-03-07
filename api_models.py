@@ -3,12 +3,17 @@ from session_singleton import Session
 from utils import UrlHelper
 import re
 from itertools import chain
-import datetime
+from datetime import datetime
 from decimal import Decimal
 
 from utils import subclass_method, coerce_method_params, date_regex
 from trade_common import StockTrade, TransactionType
 from option_trade import OptionTrade
+
+
+
+class InvalidSecurityTypeException(Exception):
+    pass
 
 
 class OpenOrder(object):
@@ -49,6 +54,18 @@ class SubPortfolio(object):
         self.total_gain_dollar = total_gain_dollar
         self.total_gain_percent = total_gain_percent
 
+    @subclass_method
+    def find(self,symbol):
+        for p in self:
+            if hasattr(p,'underlying'):
+                if symbol.upper() == p.underlying:
+                    return p
+
+            if symbol.upper() == p.symbol:
+                return p
+            
+            
+
 class Portfolio(object):
     allowable_portfolios = {
         'LongPosition': ['StockPortfolio'],
@@ -83,46 +100,6 @@ class Portfolio(object):
         self._option_portfolio = option_portfolio
         self._open_orders = open_orders
 
-    @classmethod
-    def _validate_append(cls, portfolio, position):
-        portfolio_type = type(portfolio).__name__
-        position_type = type(position).__name__
-        assert_val = (
-            portfolio_type in cls.allowable_portfolios[position_type])
-        assert assert_val, "Cannot insert a %s into a %s" % (
-            position_type, portfolio_type)
-
-    @property
-    @subclass_method
-    def total_value(self):
-        return sum((p.total_value) for p in self)
-
-    @property
-    @subclass_method
-    def total_change(self):
-        return sum(p.total_change for p in self)
-
-    def sfind(self, sym):
-        stfn = self.stock_portfolio.find
-        shfn = self.short_portfolio.find
-        opfn = self.option_portfolio.find
-
-        for position in [opfn(sym), shfn(sym), stfn(sym)]:
-            if position is not None:
-                yield position
-
-    def find(self, symbol):
-        if type(self).__name__ == 'Portfolio':
-            return self.sfind(symbol)
-
-        for position in self:
-            if position.symbol.upper() == symbol.upper():
-                return position
-
-    def append(self, item):
-        self.__class__._validate_append(self, item)
-        super().append(item)
-
     @property
     def stock_portfolio(self):
         return self._stock_portfolio
@@ -143,40 +120,43 @@ class Portfolio(object):
                 orders.append(oo)
 
         return orders
+    
+    # def refresh(self):
+    #     self = Parsers.generate_portfolio(self.portfolio_id,self.game_id,self.game_name)
+
+    
+
+
 
 
 class StockPortfolio(SubPortfolio, list):
     def __init__(self, positions=[], **kwargs):
         super().__init__(**kwargs)
         for p in positions:
-            self.append(p)
-
-        self.positions = self
+            if p.stock_type == 'long':
+                self.append(p)
+            else:
+                raise InvalidSecurityTypeException("Security type should be stock, got '%s" % p.stock_type)
 
 
 class ShortPortfolio(SubPortfolio, list):
     def __init__(self, positions=[], **kwargs):
         super().__init__(**kwargs)
         for p in positions:
-            self.append(p)
+            if p.stock_type == 'short':
+                self.append(p)
+            else:
+                raise InvalidSecurityTypeException("Security type should be short, got '%s" % p.stock_type)
 
 
 class OptionPortfolio(SubPortfolio, list):
     def __init__(self, positions=[], **kwargs):
-        
+        super().__init__(**kwargs)
         for p in positions:
-            self.append(p)
-
-    def find(self, symbol):
-        for pos in self:
-            if pos.underlying.upper() == symbol.upper():
-                return pos
-
-    def find_exact(self, symbol):
-        for pos in self:
-            if pos.symbol.upper() == symbol.upper():
-                return pos
-
+            if p.stock_type == 'option':
+                self.append(p)
+            else:
+                raise InvalidSecurityTypeException("Security type should be option, got '%s" % p.stock_type)
 
 class Position(object):
     @coerce_method_params
@@ -210,7 +190,6 @@ class Position(object):
 
 class LongPosition(Position):
     stock_type_assertion = 'long'
-
     def __init__(self, quote_fn, stock_type, **kwargs):
         super().__init__(**kwargs)
         assert(stock_type == self.stock_type_assertion)
@@ -271,48 +250,46 @@ class ShortPosition(Position):
 class OptionPosition(Position):
     stock_type_assertion = 'option'
 
-    def __init__(self, option_contract, quote_fn, stock_type, **kwargs):
+    @coerce_method_params
+    def __init__(
+            self,
+            is_put: bool,
+            last: Decimal,
+            expiration_date: int,
+            strike_price: Decimal,
+            underlying_symbol: str,
+            quote_fn: object,
+            stock_type: str,
+            **kwargs: object):
         super().__init__(**kwargs)
         assert stock_type == self.stock_type_assertion
-        self._quote_fn = quote_fn
-        self._contract = option_contract
-        self.underlying = self._contract.base_symbol
         self.stock_type = stock_type
-        self.strike_price = self._contract.strike_price
-        self.contract_type = self._contract.contract_type
-        self.expiration = self._contract.expiration
-        self._is_expired = None
+        self.is_put = is_put
+        self.current_price = last
+        self.expiration_date = datetime.fromtimestamp(expiration_date/1000)
+        self.strike_price = strike_price
         self._quote_fn = quote_fn
-        self._quote = None
+        self.underlying_symbol = underlying_symbol
+        self._contract = None
 
     @property
     def contract(self):
-        for val in self._contract.lazy_values():
-            if val is None:
-                return self.quote
+        if self._contract is None:
+            self._contract = self._quote_fn()
         return self._contract
 
     @property
     def quote(self):
-        if self._quote is None:
-            self._contract = self._quote_fn()
-            self._quote = True
-        return self._contract
-
-    @property
-    def is_expired(self):
-        if self._is_expired is None:
-            self._is_expired = False
-            if datetime.date.today() > self.expiration:
-                self._is_expired = True
-
-        return self._is_expired
+        self._contract = self._quote_fn()
+        return self.contract
 
     def close(self, **trade_kwargs):
-        trade_kwargs['contract'] = self.contract
+        trade_kwargs['symbol'] = self.symbol
         trade_kwargs.setdefault('quantity', self.quantity)
-        trade_kwargs['trade_type'] = 'sell to close'
-        return OptionTrade(**trade_kwargs)
+        trade_kwargs['transaction_type'] = TransactionType.SELL
+        close_trade = OptionTrade(**trade_kwargs)
+        close_trade.validate()
+        close_trade.execute()
 
 
 class StockQuote(object):

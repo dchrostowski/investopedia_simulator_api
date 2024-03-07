@@ -3,7 +3,7 @@ from api_models import Portfolio,StockPortfolio,ShortPortfolio,OptionPortfolio,O
 from api_models import StockQuote
 from queries import Queries
 from constants import OPTIONS_QUOTE_URL, API_URL
-from options import OptionChainLookup, OptionChain, OptionContract, OptionScope
+from options import OptionChain, OptionContract, OptionScope
 from session_singleton import Session
 from utils import UrlHelper, coerce_value
 from lxml import html
@@ -16,89 +16,10 @@ from ratelimit import limits,sleep_and_retry
 from decimal import Decimal
 import logging
 import warnings
+from IPython import embed
 
 @sleep_and_retry
-@limits(calls=6,period=20)
-def option_lookup(symbol,strike_price_proximity=3):
-    logging.debug("OPTION LOOKUP FOR %s" % symbol)
-    def filter_contracts(olist,stock_price,spp):
-        if olist is None:
-            return []
-        middle_index = 0
-        for i in range(len(olist)):
-            if stock_price < olist[i]['StrikePrice']:
-                middle_index += 1
-                break
-        start = middle_index - spp
-        end = middle_index + spp
-        if start < 0:
-            start = 0
-        if end > len(olist) - 1:
-            end = len(olist) - 1
-
-        return olist[start:end]
-
-
-    session = Session()
-    resp = session.get(UrlHelper.route('optionlookup'))
-    tree = html.fromstring(resp.text)
-
-    option_token = None
-    option_user_id = None
-
-    token = None
-    user_id = None
-    param_script = tree.xpath('//script[contains(text(),"quoteOptions")]/text()')[0]
-    param_search = re.search(r'\#get\-quote\-options\'\)\,\s*\'(.+)\'\s*\,\s*(\d+)\s*\)\;', param_script)
-    try:
-        option_token = param_search.group(1)
-        option_user_id = param_search.group(2)
-    except Exception:
-        raise Exception("Unable to get option lookup token")
-
-    option_quote_qp = {
-        'IdentifierType': 'Symbol',
-        'Identifier': symbol,
-        'SymbologyType': 'DTNSymbol',
-        'OptionExchange': None,
-        '_token': option_token,
-        '_token_userid': option_user_id
-    }
-
-    url = UrlHelper.set_query(OPTIONS_QUOTE_URL, option_quote_qp)
-
-    resp = requests.get(url)
-    option_data = json.loads(resp.text)
-
-    quote = option_data['Quote']
-    if quote is None:
-        logging.debug(option_data)
-        raise Exception("No option quote data for %s" % symbol)
-
-
-    try:
-        last_price = option_data['Quote']['Last']
-    except Exception as e:
-        logging.debug(option_data)
-        logging.debug(e)
-    option_chains = []
-    for e in option_data['Expirations']:
-        expiration = e['ExpirationDate']
-        filtered_calls = filter_contracts(e['Calls'],last_price,strike_price_proximity)
-        filtered_puts = filter_contracts(e['Puts'],last_price,strike_price_proximity)
-        
-
-        calls = [OptionContract(o) for o in filtered_calls]
-        puts = [OptionContract(o) for o in filtered_puts]
-        option_chains.append(OptionChain(expiration,calls=calls,puts=puts))
-
-        
-    option_chain_lookup = OptionChainLookup(symbol,*option_chains)
-    return option_chain_lookup
-
-
-@sleep_and_retry
-@limits(calls=6,period=20)
+@limits(calls=10,period=20)
 def stock_quote(symbol):
     session = Session()
 
@@ -149,23 +70,16 @@ def stock_quote(symbol):
     return quote
 
 class QuoteWrapper(object):
-    def __init__(self,symbol):
+    def __init__(self,symbol, underlying=None):
         self.symbol = symbol
+        self.underlying = underlying
 
     def wrap_quote(self):
         return stock_quote(self.symbol)
-
-class OptionLookupWrapper(object):
-    def __init__(self,underlying,contract_symbol,contract):
-        self.underlying = underlying
-        self.contract_symbol = contract_symbol
-        self.contract = contract
-
-    def wrap_quote(self):
-        # check if contract is expired here before doing a lookup
-        if datetime.date.today() > self.contract.expiration:
-            return self.contract
-        return option_lookup(self.underlying)[self.contract_symbol]
+    
+    def wrap_option_quote(self):
+        oc = OptionChain(self.underlying)
+        return oc.options.get(self.symbol,None)
 
 class CancelOrderWrapper(object):
     def __init__(self,order_id):
@@ -252,8 +166,7 @@ class Parsers(object):
 
         stock_portfolio = Parsers.generate_stock_portfolio(portfolio_id)
         short_portfolio = Parsers.generate_stock_portfolio(portfolio_id, short=True)
-        option_portfolio = OptionPortfolio()
-
+        option_portfolio = Parsers.generate_option_portfolio(portfolio_id)
         # TO DO
         #Parsers.parse_and_sort_positions(portfolio_tree,stock_portfolio,short_portfolio,option_portfolio)
 
@@ -293,26 +206,70 @@ class Parsers(object):
             'total_gain_dollar': data['totalGainDollar'],
             'total_gain_percent': data['totalGainPercent']
         }
+    
+    @staticmethod
+    def generate_option_portfolio(portfolio_id):
+        session = Session()
+        resp = session.post(API_URL,data=Queries.option_holdings(portfolio_id))
+        resp_data = json.loads(resp.text)
+        option_data = resp_data['data']['readPortfolio']['holdings']
+        summary_data = option_data['holdingsSummary']
+        position_data = option_data['executedTrades']
+        sub_portfolio_dict = Parsers.make_subportfolio_dict(portfolio_id,summary_data)
+        positions = []
+        stock_type = 'option'
+
+        for data in position_data:
+            
+            option_data = data['option']
+            stock_data = option_data['stock']
+
+            position_kwargs = {
+                'portfolio_id': portfolio_id,
+                'symbol': option_data['symbol'],
+                'is_put': option_data['isPut'],
+                'last': option_data['lastPrice'],
+                'expiration_date': option_data['expirationDate'],
+                'strike_price': option_data['strikePrice'],
+                'underlying_symbol': stock_data['symbol'],
+                'description': stock_data['description'],
+                'quantity': data['quantity'],
+                'purchase_price': data['purchasePrice'],
+                'market_value': data['marketValue'],
+                'day_gain_dollar': data['dayGainDollar'],
+                'day_gain_percent': data['dayGainPercent'],
+                'total_gain_dollar': data['totalGainDollar'],
+                'total_gain_percent': data['totalGainPercent'],
+                'stock_type': stock_type
+            }
+
+            qw = QuoteWrapper(option_data['symbol'],underlying=stock_data['symbol'])
+            position_kwargs['quote_fn'] = qw.wrap_option_quote
+            position = OptionPosition(**position_kwargs)
+            positions.append(position)
+
+        return OptionPortfolio(positions=positions,**sub_portfolio_dict)
+
+
+            
+            
+
+
 
     @staticmethod
     def generate_stock_portfolio(portfolio_id, short=False):
         session = Session()
-
         resp = None
         stock_type = None
         if short:
             stock_type = 'short'
             resp = session.post(API_URL,data=Queries.short_holdings(portfolio_id))
-
-
         else:
             stock_type = 'long'
             resp = session.post(API_URL,data=Queries.stock_holdings(portfolio_id))
 
         resp.raise_for_status()
-
         resp_data = json.loads(resp.text)
-        
         
         stock_data = resp_data['data']['readPortfolio']['holdings']
         summary_data = stock_data['holdingsSummary']
@@ -354,47 +311,3 @@ class Parsers(object):
             stock_portfolio = StockPortfolio(positions=positions,**sub_portfolio_dict)
 
         return stock_portfolio
-
-
-
-    @staticmethod
-    def parse_and_sort_positions(tree,stock_portfolio,short_portfolio, option_portfolio):        
-        trs = tree.xpath('//table[contains(@class,"table1")]/tbody/tr[not(contains(@class,"expandable")) and not(contains(@class,"no-border"))]')
-        xpath_map = {
-            'portfolio_id': 'td[1]/div/@data-portfolioid',
-            # stock_type': 'td[1]/div/@data-stocktype',
-            'symbol': 'td[1]/div/@data-symbol',
-            'description': 'td[4]/text()',
-            'quantity': 'td[5]/text()',
-            'purchase_price': 'td[6]/text()',
-            'current_price': 'td[7]/text()',
-            'total_value': 'td[8]/text()',
-        }
-
-        for tr in trs:
-            # <div class="detailButton btn-expand close" id="PS_LONG_0" data-symbol="TMO" data-portfolioid="5700657" data-stocktype="long"></div>
-            fon = lambda x: x[0] if len(x)> 0 else None
-            position_data = {k: fon(tr.xpath(v)) for k, v in xpath_map.items()}
-
-            stock_type = fon(tr.xpath('td[1]/div/@data-stocktype'))
-            trade_link = fon(tr.xpath('td[2]/a[2]/@href'))
-
-            if stock_type is None or trade_link is None:
-                continue
-
-            elif stock_type == 'long':
-                qw = QuoteWrapper(position_data['symbol']).wrap_quote
-                long_pos = LongPosition(qw, stock_type, **position_data)
-                stock_portfolio.append(long_pos)
-            elif stock_type == 'short':
-                qw = QuoteWrapper(position_data['symbol']).wrap_quote
-                short_pos = ShortPosition(qw,stock_type, **position_data)
-                short_portfolio.append(short_pos)
-            elif stock_type == 'option':
-                contract_symbol = position_data['symbol']
-                oc = OptionContract(contract_name=position_data['symbol'])
-                underlying = oc.base_symbol
-                quote_fn = OptionLookupWrapper(underlying,contract_symbol,oc).wrap_quote
-                option_pos = OptionPosition(oc,quote_fn,stock_type, **position_data)
-
-                option_portfolio.append(option_pos)

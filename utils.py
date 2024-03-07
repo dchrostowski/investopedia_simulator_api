@@ -91,7 +91,7 @@ def coerce_method_params(func):
         try:
             new_kwargs = {k:coerce_value(copy_kwargs[k], func_annotations[k]) for k in copy_kwargs}
         except KeyError as e:
-            warnings.warn("Missing annotations for param(s).  Not correcting any param types for method %s" % func.__qualname__)
+            # warnings.warn("Missing annotations for param(s).  Not correcting any param types for method %s" % func.__qualname__)
             return func(self,*args,**kwargs)
         return func(self,**new_kwargs)
     return wrapper
