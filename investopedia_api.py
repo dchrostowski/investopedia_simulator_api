@@ -1,9 +1,6 @@
 from parsers import Parsers, stock_quote
-from trade_common import Expiration, OrderLimit, TransactionType, Trade, StockTrade
-from trade_common import TradeExceedsMaxSharesException, TradeNotValidatedException, InvalidOrderDurationException, InvalidOrderTypeException, InvalidTradeTypeException
-from options import OptionChain
-from option_trade import OptionTrade
-# from stock_trade import StockTrade
+from trade_common import Expiration, OrderLimit, TransactionType, OptionTrade, StockTrade
+from api_models import OptionChain
 from session_singleton import Session
 from utils import TaskQueue, validate_and_execute_trade
 import warnings
