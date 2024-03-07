@@ -79,7 +79,7 @@ class QuoteWrapper(object):
     
     def wrap_option_quote(self):
         oc = OptionChain(self.underlying)
-        return oc.chain.get(self.symbol,None)
+        return oc.options.get(self.symbol,None)
 
 class CancelOrderWrapper(object):
     def __init__(self,order_id):
@@ -243,10 +243,16 @@ class Parsers(object):
                 'stock_type': stock_type
             }
 
-            qw = QuoteWrapper(option_data['symbol'],stock_data['symbol'])
+            qw = QuoteWrapper(option_data['symbol'],underlying=stock_data['symbol'])
             position_kwargs['quote_fn'] = qw.wrap_option_quote
             position = OptionPosition(**position_kwargs)
-            embed()
+            positions.append(position)
+
+        return OptionPortfolio(positions=positions,**sub_portfolio_dict)
+
+
+            
+            
 
 
 

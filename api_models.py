@@ -11,6 +11,11 @@ from trade_common import StockTrade, TransactionType
 from option_trade import OptionTrade
 
 
+
+class InvalidSecurityTypeException(Exception):
+    pass
+
+
 class OpenOrder(object):
     @coerce_method_params
     def __init__(
@@ -49,6 +54,18 @@ class SubPortfolio(object):
         self.total_gain_dollar = total_gain_dollar
         self.total_gain_percent = total_gain_percent
 
+    @subclass_method
+    def find(self,symbol):
+        for p in self:
+            if hasattr(p,'underlying'):
+                if symbol.upper() == p.underlying:
+                    return p
+
+            if symbol.upper() == p.symbol:
+                return p
+            
+            
+
 class Portfolio(object):
     allowable_portfolios = {
         'LongPosition': ['StockPortfolio'],
@@ -83,46 +100,6 @@ class Portfolio(object):
         self._option_portfolio = option_portfolio
         self._open_orders = open_orders
 
-    @classmethod
-    def _validate_append(cls, portfolio, position):
-        portfolio_type = type(portfolio).__name__
-        position_type = type(position).__name__
-        assert_val = (
-            portfolio_type in cls.allowable_portfolios[position_type])
-        assert assert_val, "Cannot insert a %s into a %s" % (
-            position_type, portfolio_type)
-
-    @property
-    @subclass_method
-    def total_value(self):
-        return sum((p.total_value) for p in self)
-
-    @property
-    @subclass_method
-    def total_change(self):
-        return sum(p.total_change for p in self)
-
-    def sfind(self, sym):
-        stfn = self.stock_portfolio.find
-        shfn = self.short_portfolio.find
-        opfn = self.option_portfolio.find
-
-        for position in [opfn(sym), shfn(sym), stfn(sym)]:
-            if position is not None:
-                yield position
-
-    def find(self, symbol):
-        if type(self).__name__ == 'Portfolio':
-            return self.sfind(symbol)
-
-        for position in self:
-            if position.symbol.upper() == symbol.upper():
-                return position
-
-    def append(self, item):
-        self.__class__._validate_append(self, item)
-        super().append(item)
-
     @property
     def stock_portfolio(self):
         return self._stock_portfolio
@@ -143,40 +120,43 @@ class Portfolio(object):
                 orders.append(oo)
 
         return orders
+    
+    # def refresh(self):
+    #     self = Parsers.generate_portfolio(self.portfolio_id,self.game_id,self.game_name)
+
+    
+
+
 
 
 class StockPortfolio(SubPortfolio, list):
     def __init__(self, positions=[], **kwargs):
         super().__init__(**kwargs)
         for p in positions:
-            self.append(p)
-
-        self.positions = self
+            if p.stock_type == 'long':
+                self.append(p)
+            else:
+                raise InvalidSecurityTypeException("Security type should be stock, got '%s" % p.stock_type)
 
 
 class ShortPortfolio(SubPortfolio, list):
     def __init__(self, positions=[], **kwargs):
         super().__init__(**kwargs)
         for p in positions:
-            self.append(p)
+            if p.stock_type == 'short':
+                self.append(p)
+            else:
+                raise InvalidSecurityTypeException("Security type should be short, got '%s" % p.stock_type)
 
 
 class OptionPortfolio(SubPortfolio, list):
     def __init__(self, positions=[], **kwargs):
-        
+        super().__init__(**kwargs)
         for p in positions:
-            self.append(p)
-
-    def find(self, symbol):
-        for pos in self:
-            if pos.underlying.upper() == symbol.upper():
-                return pos
-
-    def find_exact(self, symbol):
-        for pos in self:
-            if pos.symbol.upper() == symbol.upper():
-                return pos
-
+            if p.stock_type == 'option':
+                self.append(p)
+            else:
+                raise InvalidSecurityTypeException("Security type should be option, got '%s" % p.stock_type)
 
 class Position(object):
     @coerce_method_params
@@ -283,7 +263,7 @@ class OptionPosition(Position):
             **kwargs: object):
         super().__init__(**kwargs)
         assert stock_type == self.stock_type_assertion
-
+        self.stock_type = stock_type
         self.is_put = is_put
         self.current_price = last
         self.expiration_date = datetime.fromtimestamp(expiration_date/1000)
@@ -300,6 +280,7 @@ class OptionPosition(Position):
 
     @property
     def quote(self):
+        self._contract = self._quote_fn()
         return self.contract
 
     def close(self, **trade_kwargs):

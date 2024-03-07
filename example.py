@@ -35,16 +35,17 @@ print("-------------------------------------------------")
 
 stock_portfolio = p.stock_portfolio
 short_portfolio = p.short_portfolio
+option_portfolio = p.option_portfolio
 
 print("\nStock Portfolio Details:")
 print("-------------------------------------------------")
-print("Market Value: %s" % stock_portfolio.market_value)
-print("Today's Gain: %s (%s%%)" % (stock_portfolio.day_gain_dollar, stock_portfolio.day_gain_percent))
-print("Total Gain: %s (%s%%)" % (stock_portfolio.total_gain_dollar, stock_portfolio.total_gain_percent))
+print("Market Value: %s" % p.stock_portfolio.market_value)
+print("Today's Gain: %s (%s%%)" % (p.stock_portfolio.day_gain_dollar, p.stock_portfolio.day_gain_percent))
+print("Total Gain: %s (%s%%)" % (p.stock_portfolio.total_gain_dollar, p.stock_portfolio.total_gain_percent))
 print("-------------------------------------------------")
 
 print("\nLong Positions:")
-for position in stock_portfolio:
+for position in p.stock_portfolio:
     print("-------------------------------------------------")
     print("Company: %s (%s)" % (position.description, position.symbol))
     print("Shares: %s" % position.quantity)
@@ -64,7 +65,7 @@ for position in stock_portfolio:
 
 
 print("\nShort Positions:")
-for position in short_portfolio:
+for position in p.short_portfolio:
     print("-------------------------------------------------")
     print("Company: %s (%s)" % (position.description, position.symbol))
     print("Shares: %s" % position.quantity)
@@ -82,9 +83,25 @@ for position in short_portfolio:
     print("\t------------------------------")
     print("-------------------------------------------------")
 
-
-for oo in p.open_orders:
-    oo.cancel()
+print("\nOption Positions:")
+for position in p.option_portfolio:
+    print("-------------------------------------------------")
+    print("Company: %s (%s)" % (position.description, position.underlying_symbol))
+    print("Symbol: %s" % position.symbol)
+    print("Contracts: %s" % position.quantity)
+    print("Purchase Price: %s" % position.purchase_price)
+    print("Current Price: %s" % position.current_price)
+    print("Today's Gain: %s (%s%%)" % (position.day_gain_dollar, position.day_gain_percent))
+    print("Total Gain: %s (%s%%)" % (position.total_gain_dollar, position.total_gain_percent))
+    print("Market/Total Value: %s" % position.market_value)
+    print("\t------------------------------")
+    print("\tQuote")
+    print("\t------------------------------")
+    quote = position.quote
+    for k,v in quote.__dict__.items():
+        print("\t%s: %s" % (k,v))
+    print("\t------------------------------")
+    print("-------------------------------------------------")
 
 # Make a stock trade
     
@@ -126,9 +143,9 @@ for open_order in p.open_orders:
 
 
 stock_portfolio = p.stock_portfolio
-if len(stock_portfolio) > 0:
+if len(p.stock_portfolio) > 0:
     # first long position in portfolio
-    first_long_position = stock_portfolio[0]
+    first_long_position = p.stock_portfolio[0]
     symbol = first_long_position.symbol
     quantity = first_long_position.quantity
     
@@ -142,9 +159,9 @@ if len(stock_portfolio) > 0:
             oo.cancel()
 
 short_portfolio = p.short_portfolio
-if len(short_portfolio) > 0:
+if len(p.short_portfolio) > 0:
     # first long position in portfolio
-    first_short_position = short_portfolio[0]
+    first_short_position = p.short_portfolio[0]
     symbol = first_short_position.symbol
     quantity = first_short_position.quantity
     
