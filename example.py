@@ -179,10 +179,12 @@ if len(p.option_portfolio) > 0:
     first_option_contract = p.option_portfolio[0]
     symbol = first_option_contract.symbol
     quantity = first_option_contract.quantity
+    # close out first option contract in portfolio
     first_option_contract.close()
     client.refresh_portfolio()
     p = client.portfolio
     for oo in p.open_orders:
+        # cancel order to close out contract
         if oo.symbol == symbol and oo.quantity == quantity:
             oo.cancel()
 
