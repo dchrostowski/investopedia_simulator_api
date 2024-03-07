@@ -1,9 +1,6 @@
 import re
-import copy
 from ratelimit import limits, sleep_and_retry
-from utils import UrlHelper,TradeExceedsMaxSharesException
 from session_singleton import Session
-from lxml import html
 from constants import *
 import warnings
 from queries import Queries
@@ -26,26 +23,6 @@ class TradeNotValidatedException(Exception):
 
 class DuplicateTradeException(Exception):
     pass
-
-
-# def convert_trade_props(func):
-#     @wraps(func)
-#     def wrapper(self, *arg, **kwargs):
-#         copy_kwargs = copy.deepcopy(kwargs)
-#         copy_kwargs.update(dict(zip(func.__code__.co_varnames[1:], args)))
-#         trade_type = copy_kwargs.get('trade_type', None)
-#         order_type = copy_kwargs.get('order_type', None)
-#         duration = copy_kwargs.get('duration', None)
-
-#         if trade_type is not None and type(trade_type) == str:
-#             copy_kwargs['trade_type'] = TransactionType(trade_type)
-#         if order_type is not None and type(order_type) == str:
-#             copy_kwargs['order_type'] = OrderLimit.fromstring(order_type)
-#         if duration is not None and type(duration) == str:
-#             copy_kwargs['duration'] = Expiration(duration)
-
-#         return func(self, **copy_kwrags)
-#     return wrapper
 
 
 class TransactionType(object):
@@ -188,8 +165,6 @@ class Trade(object):
                 warnings.warn(error['message'])
             self._validated = False
             return
-        
-
         elif resp_json['data'][response_key].get('errorMessages',None) is not None:
             errors = resp_json['data']['previewStockTrade']['errorMessages']
             for error in errors:

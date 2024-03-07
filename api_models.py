@@ -1,18 +1,12 @@
 from constants import *
-from session_singleton import Session
-from utils import UrlHelper
-from itertools import chain
 from datetime import datetime
 from decimal import Decimal
 
-from utils import subclass_method, coerce_method_params, date_regex
+from utils import subclass_method, coerce_method_params
 from trade_common import StockTrade, TransactionType, OptionTrade
-
-
 
 class InvalidSecurityTypeException(Exception):
     pass
-
 
 class OpenOrder(object):
     @coerce_method_params
@@ -27,8 +21,6 @@ class OpenOrder(object):
     ):
         self.order_id = order_id
         self.cancel_fn = cancel_fn
-        # strptime with %-m/%-d/%Y %-I:%M:%S %p SHOULD WORK
-        # because it looks like this: 4/1/2019 11:10:35 PM
         self.trade_type = trade_type
         self.symbol = symbol
         self.quantity = quantity
@@ -40,8 +32,6 @@ class OpenOrder(object):
         if cancelled:
             self.active = False
             print("Order ID %s cancelled!" % self.order_id)
-
-
 
 class SubPortfolio(object):
     def __init__(self,portfolio_id,market_value,day_gain_dollar,day_gain_percent,total_gain_dollar,total_gain_percent):
@@ -121,11 +111,6 @@ class Portfolio(object):
     
     # def refresh(self):
     #     self = Parsers.generate_portfolio(self.portfolio_id,self.game_id,self.game_name)
-
-    
-
-
-
 
 class StockPortfolio(SubPortfolio, list):
     def __init__(self, positions=[], **kwargs):

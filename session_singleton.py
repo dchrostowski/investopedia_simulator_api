@@ -1,5 +1,3 @@
-from utils import UrlHelper
-
 import os
 import requests
 from lxml import html

@@ -1,7 +1,6 @@
 from trade_common import TransactionType, OrderLimit, Expiration, Trade
 from lxml import html
 from ratelimit import limits, sleep_and_retry
-from utils import UrlHelper
 from session_singleton import Session
 import warnings
 import re

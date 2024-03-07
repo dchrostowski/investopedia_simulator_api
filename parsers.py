@@ -5,7 +5,6 @@ from queries import Queries
 from constants import OPTIONS_QUOTE_URL, API_URL
 from options import OptionChain, OptionContract, OptionScope
 from session_singleton import Session
-from utils import UrlHelper, coerce_value
 from lxml import html
 import json
 import re
