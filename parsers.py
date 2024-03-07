@@ -16,10 +16,9 @@ from ratelimit import limits,sleep_and_retry
 from decimal import Decimal
 import logging
 import warnings
-from IPython import embed
 
 @sleep_and_retry
-@limits(calls=10,period=20)
+@limits(calls=6,period=20)
 def stock_quote(symbol):
     session = Session()
 

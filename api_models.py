@@ -1,14 +1,12 @@
 from constants import *
 from session_singleton import Session
 from utils import UrlHelper
-import re
 from itertools import chain
 from datetime import datetime
 from decimal import Decimal
 
 from utils import subclass_method, coerce_method_params, date_regex
-from trade_common import StockTrade, TransactionType
-from option_trade import OptionTrade
+from trade_common import StockTrade, TransactionType, OptionTrade
 
 
 
@@ -57,8 +55,8 @@ class SubPortfolio(object):
     @subclass_method
     def find(self,symbol):
         for p in self:
-            if hasattr(p,'underlying'):
-                if symbol.upper() == p.underlying:
+            if hasattr(p,'underlying_symbol'):
+                if symbol.upper() == p.underlying_symbol:
                     return p
 
             if symbol.upper() == p.symbol:
@@ -287,6 +285,7 @@ class OptionPosition(Position):
         trade_kwargs['symbol'] = self.symbol
         trade_kwargs.setdefault('quantity', self.quantity)
         trade_kwargs['transaction_type'] = TransactionType.SELL
+        trade_kwargs['portfolio_id'] = self.portfolio_id
         close_trade = OptionTrade(**trade_kwargs)
         close_trade.validate()
         close_trade.execute()

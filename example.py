@@ -1,8 +1,7 @@
-from investopedia_api import InvestopediaApi, TradeExceedsMaxSharesException
+from investopedia_api import InvestopediaApi
 import json
 from datetime import datetime, timedelta
 from trade_common import OrderLimit, TransactionType, Expiration, StockTrade,OptionTrade
-import time
 from options import OptionChain, OptionScope
 
 credentials = {}
