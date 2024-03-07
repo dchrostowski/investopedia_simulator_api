@@ -1,7 +1,5 @@
-import re
 from constants import OPTION_MONTH_CODES
 from datetime import datetime, timedelta
-import calendar
 from typing import List
 from queries import Queries
 from session_singleton import Session
@@ -19,29 +17,6 @@ class OptionScope(object):
     NEAR_THE_MONEY = 'NEAR_THE_MONEY'
     OUT_OF_THE_MONEY = 'OUT_OF_THE_MONEY'
     ALL = 'ALL'
-
-    
-class OptionChainLookup(dict):
-    def __init__(self,symbol,*option_chains):
-        self.expirations = {}
-        for oc in option_chains:
-            for contract in oc.calls + oc.puts:
-                self.update({contract.contract_name: contract})
-            self.expirations.update({
-                oc.expiration_date: oc
-            })
-        self.symbol = symbol
-
-    def search_by_month_and_year(self,month,year):
-        last_day = calendar.monthrange(year,month)[1]
-        start_date = datetime(year,month,1)
-        end_date = datetime(year,month,last_day)
-        return self.search_by_daterange(start_date,end_date)
-
-    def search_by_daterange(self,start_date,end_date):
-        for exp_date in self.expirations.keys():
-            if exp_date >= start_date and exp_date <= end_date:
-                yield self.expirations[exp_date]
 
 
 class OptionChain(object):
@@ -152,8 +127,3 @@ class OptionContract(object):
         self.in_the_money = kwargs['isInTheMoney']
         self.expiration = datetime.fromtimestamp(kwargs['expiration']/1000)
         self.is_put = kwargs['is_put']
-
-
-
-# for type hinting
-OptionContractList = List[OptionContract]
