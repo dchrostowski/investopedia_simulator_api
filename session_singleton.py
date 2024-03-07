@@ -6,7 +6,6 @@ from lxml import html
 import warnings
 import re
 import json
-from IPython import embed
 from constants import API_URL, REFRESH_AUTH_TOKEN_URL
 from queries import Queries
 

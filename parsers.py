@@ -15,7 +15,6 @@ import datetime
 from ratelimit import limits,sleep_and_retry
 from decimal import Decimal
 import logging
-from IPython import embed
 import warnings
 
 @sleep_and_retry
@@ -399,35 +398,3 @@ class Parsers(object):
                 option_pos = OptionPosition(oc,quote_fn,stock_type, **position_data)
 
                 option_portfolio.append(option_pos)
-
-
-    @staticmethod
-    def parse_option_chain(symbol):
-        session = Session()
-        exp_resp = session.post(API_URL,data=Queries.option_expiration_dates(symbol))
-        exp_resp.raise_for_status()
-
-        exp_json = json.loads(exp_resp.text)
-        for expiration in exp_json['data']['readOptionsExpirationDates']['expirationDates']:
-            ntm_options_resp = session.post(API_URL, data=Queries.options_by_expiration(symbol,expiration,OptionScope.NEAR_THE_MONEY))
-            itm_options_resp = session.post(API_URL, data=Queries.options_by_expiration(symbol,expiration,OptionScope.IN_THE_MONEY))
-            otm_options_resp = session.post(API_URL, data=Queries.options_by_expiration(symbol,expiration,OptionScope.OUT_OF_THE_MONEY))
-
-            ntm_options_resp.raise_for_status()
-            itm_options_resp.raise_for_status()
-            otm_options_resp.raise_for_status()
-
-            ntm_options = json.loads(ntm_options_resp.text)['data']['readStock']['options']
-            ntm_call_options = ntm_options['callOptions']['list']
-            ntm_put_options = ntm_options['putOptions']['list']
-
-            for co_kwargs in ntm_call_options:
-                co_kwargs['expiration'] = expiration
-                co_kwargs['is_put'] = False
-                call_option = OptionContract(**co_kwargs)
-
-            embed()
-        
-
-
-

@@ -7,7 +7,6 @@ from queries import Queries
 from session_singleton import Session
 from constants import API_URL
 import json
-from IPython import embed
 
 class InvalidOptionChainException(Exception):
     pass
