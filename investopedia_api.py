@@ -1,5 +1,5 @@
 from api_models import Portfolio
-from parsers import Parsers, option_lookup, stock_quote
+from parsers import Parsers, stock_quote
 from trade_common import Expiration, OrderLimit, TransactionType, Trade, StockTrade
 from trade_common import TradeExceedsMaxSharesException, TradeNotValidatedException, InvalidOrderDurationException, InvalidOrderTypeException, InvalidTradeTypeException
 from options import OptionChain
