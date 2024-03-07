@@ -58,7 +58,7 @@ def coerce_value(value,new_type):
     if new_type not in (str,Decimal,int):
         return value
     
-    value = re.sub('\s+',' ', str(value)).strip()
+    value = re.sub(r'\s+',' ', str(value)).strip()
     if new_type == str:
         return value
 

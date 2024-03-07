@@ -104,7 +104,8 @@ class Queries(object):
         symbol = trade.symbol
         transaction_type = trade.transaction_type
 
-        return json.dumps({"operationName":"PreviewOptionTrade","variables":{"input":{"expiry":expiry,"limit":limit,"portfolioId":portfolio_id,"quantity":quantity,"symbol":symbol,"transactionType":transaction_type}},"query":"query PreviewStockTrade($input: TradeEntityInput!) {\n  previewStockTrade(stockTradeEntityInput: $input) {\n    ... on TradeDetails {\n      bill {\n        commission\n        price\n        quantity\n        total\n        __typename\n      }\n      __typename\n    }\n    ... on TradeInvalidEntity {\n      errorMessages\n      __typename\n    }\n    ... on TradeInvalidTransaction {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"})
+        return json.dumps({"operationName":"PreviewOptionTrade","variables":{"input":{"expiry":expiry,"limit":limit,"portfolioId":portfolio_id,"quantity":quantity,"transactionType":transaction_type,"symbol":symbol}},"query":"query PreviewOptionTrade($input: TradeEntityInput!) {\n  previewOptionTrade(optionTradeEntityInput: $input) {\n    ... on TradeDetails {\n      bill {\n        commission\n        price\n        quantity\n        total\n        __typename\n      }\n      __typename\n    }\n    ... on TradeInvalidEntity {\n      errorMessages\n      __typename\n    }\n    ... on TradeInvalidTransaction {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"}
+)
     
     @staticmethod
     def execute_option_trade(trade):
@@ -114,7 +115,9 @@ class Queries(object):
         quantity = trade.quantity
         symbol = trade.symbol
         transaction_type = trade.transaction_type
+
+        return json.dumps({"operationName":"OptionTrade","variables":{"input":{"expiry":expiry,"limit":limit,"portfolioId":portfolio_id,"quantity":quantity,"transactionType":transaction_type,"symbol":symbol}},"query":"mutation OptionTrade($input: TradeEntityInput!) {\n  submitOptionTrade(optionTradeEntityInput: $input) {\n    ... on TradeInvalidEntity {\n      errorMessages\n      __typename\n    }\n    ... on TradeInvalidTransaction {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"})
         
-        return json.dumps({"operationName":"OptionTrade","variables":{"input":{"expiry":expiry,"limit":limit,"portfolioId":portfolio_id,"quantity":quantity,"symbol":symbol,"transactionType":transaction_type}},"query":"mutation StockTrade($input: TradeEntityInput!) {\n  submitStockTrade(stockTradeEntityInput: $input) {\n    ... on TradeInvalidEntity {\n      errorMessages\n      __typename\n    }\n    ... on TradeInvalidTransaction {\n      errorMessages\n      __typename\n    }\n    __typename\n  }\n}\n"})
+
 
 

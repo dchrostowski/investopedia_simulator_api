@@ -1,8 +1,7 @@
 from investopedia_api import InvestopediaApi, TradeExceedsMaxSharesException
 import json
 from datetime import datetime, timedelta
-from IPython import embed
-from trade_common import OrderLimit, TransactionType, Expiration, StockTrade
+from trade_common import OrderLimit, TransactionType, Expiration, StockTrade,OptionTrade
 import time
 from options import OptionChain, OptionScope
 
@@ -83,6 +82,10 @@ for position in short_portfolio:
     print("\t------------------------------")
     print("-------------------------------------------------")
 
+
+for oo in p.open_orders:
+    oo.cancel()
+
 # Make a stock trade
     
 # Buy 2 shares of GOOG with limit $100 and no expiration
@@ -120,7 +123,6 @@ for open_order in p.open_orders:
     if open_order.symbol == 'AMZN' and open_order.quantity == 1:
         # cancel AMZN trade
         open_order.cancel()
-
 
 
 stock_portfolio = p.stock_portfolio
@@ -168,8 +170,16 @@ for option in put_options_near_expiration_itm:
     print("%s:\n\tbid: %s\n\task: %s\n\tlast price: %s\n\texpires:%s" % (option.symbol, option.bid, option.ask, option.last, option.expiration.strftime("%m/%d/%Y") ))
 
 
+option_to_buy = put_options_near_expiration_itm[0]
+trade4 = OptionTrade(portfolio_id=p.portfolio_id, symbol=option_to_buy.symbol, quantity=1, transaction_type=TransactionType.BUY)
+trade4.validate()
+trade4.execute()
+client.refresh_portfolio()
 
-
+p = client.portfolio
+for oo in p.open_orders:
+    if oo.symbol == option_to_buy.symbol:
+        oo.cancel()
 
 
 

@@ -1,11 +1,10 @@
 asttokens==2.4.1
-certifi==2023.7.22
+certifi==2024.2.2
 chardet==3.0.4
 charset-normalizer==3.3.2
 decorator==5.1.1
 executing==2.0.1
 idna==2.8
-ipython==8.22.1
 jedi==0.19.1
 lxml==5.1.0
 matplotlib-inline==0.1.6
