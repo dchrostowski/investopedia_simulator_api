@@ -7,7 +7,7 @@ import datetime
 from decimal import Decimal
 
 from utils import subclass_method, coerce_method_params, date_regex
-from stock_trade import StockTrade
+from trade_common import StockTrade, TransactionType
 from option_trade import OptionTrade
 
 
@@ -182,6 +182,7 @@ class Position(object):
     @coerce_method_params
     def __init__(
             self: object,
+            portfolio_id: str,
             symbol: str,
             quantity: int,
             description: str,
@@ -193,6 +194,7 @@ class Position(object):
             total_gain_percent: Decimal
         ):
 
+        self.portfolio_id = portfolio_id
         self.symbol = symbol
         self.quantity = quantity
         self.description = description
@@ -227,8 +229,12 @@ class LongPosition(Position):
     def sell(self, **trade_kwargs):
         trade_kwargs['symbol'] = self.symbol
         trade_kwargs.setdefault('quantity', self.quantity)
-        trade_kwargs['trade_type'] = 'sell'
-        return StockTrade(**trade_kwargs)
+        trade_kwargs['transaction_type'] = TransactionType.SELL
+        trade_kwargs['portfolio_id'] = self.portfolio_id
+        sell_trade = StockTrade(**trade_kwargs)
+        sell_trade.validate()
+        sell_trade.execute()
+        return sell_trade
 
 
 class ShortPosition(Position):
@@ -254,8 +260,12 @@ class ShortPosition(Position):
     def cover(self, **trade_kwargs):
         trade_kwargs['symbol'] = self.symbol
         trade_kwargs.setdefault('quantity', self.quantity)
-        trade_kwargs['trade_type'] = 'buy_to_cover'
-        return StockTrade(**trade_kwargs)
+        trade_kwargs['transaction_type'] = TransactionType.BUY_TO_COVER
+        trade_kwargs['portfolio_id'] = self.portfolio_id
+        cover_trade = StockTrade(**trade_kwargs)
+        cover_trade.validate()
+        cover_trade.execute()
+        return cover_trade
 
 
 class OptionPosition(Position):

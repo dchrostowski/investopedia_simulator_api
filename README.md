@@ -53,7 +53,6 @@ Finally, try running the provided `example.py` file.  This `example.py` file is 
 from investopedia_api import InvestopediaApi, TradeExceedsMaxSharesException
 import json
 import datetime
-from IPython import embed
 
 credentials = {}
 with open('credentials.json') as ifh:
