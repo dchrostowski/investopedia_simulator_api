@@ -116,8 +116,16 @@ class Portfolio(object):
 
         return orders
     
-    # def refresh(self):
-    #     self = Parsers.generate_portfolio(self.portfolio_id,self.game_id,self.game_name)
+    def refresh(self):
+        new_portfolio = Parsers.generate_portfolio(self.portfolio_id,self.game_id,self.game_name)
+        self._stock_portfolio = new_portfolio._stock_portfolio
+        self._short_portfolio = new_portfolio._short_portfolio
+        self._option_portfolio = new_portfolio._option_portfolio
+        self._open_orders = new_portfolio._open_orders
+        self.account_value = new_portfolio.account_value
+        self.buying_power = new_portfolio.buying_power
+        self.cash = new_portfolio.cash
+        self.annual_return_pct = new_portfolio.annual_return_pct
 
 class StockPortfolio(SubPortfolio, list):
     def __init__(self, positions=[], **kwargs):

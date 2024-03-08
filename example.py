@@ -31,11 +31,6 @@ for open_order in p.open_orders:
     print("-------------------------------------------------")
 print("-------------------------------------------------")
 
-
-stock_portfolio = p.stock_portfolio
-short_portfolio = p.short_portfolio
-option_portfolio = p.option_portfolio
-
 print("\nStock Portfolio Details:")
 print("-------------------------------------------------")
 print("Market Value: %s" % p.stock_portfolio.market_value)
@@ -124,8 +119,7 @@ trade3.validate()
 trade3.execute()
 
 
-client.refresh_portfolio()
-p = client.portfolio
+p.refresh()
 
 for open_order in p.open_orders:
     if open_order.symbol == 'GOOG' and open_order.quantity == 2:
@@ -139,7 +133,6 @@ for open_order in p.open_orders:
     if open_order.symbol == 'AMZN' and open_order.quantity == 1:
         # cancel AMZN trade
         open_order.cancel()
-
 
 stock_portfolio = p.stock_portfolio
 if len(p.stock_portfolio) > 0:
