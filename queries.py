@@ -1,8 +1,6 @@
 import json
 from urllib.parse import urlencode
 
-
-
 class Queries(object):
 
     @staticmethod

@@ -1,8 +1,7 @@
-from parsers import Parsers, stock_quote
+
 from trade_common import Expiration, OrderLimit, TransactionType, OptionTrade, StockTrade
-from api_models import OptionChain
+from api_models import OptionChain, Parsers, stock_quote
 from session_singleton import Session
-from utils import TaskQueue, validate_and_execute_trade
 import warnings
 
 
@@ -45,13 +44,6 @@ class InvestopediaApi(object):
             return
         else:
             warnings.warn("Portfolio not changed, specify a valid game_name, game_id, or portfolio_id")
-
-
-
-
-    class TradeQueue(TaskQueue):
-        def __init__(self):
-            super().__init__(default_task_function=validate_and_execute_trade)
 
 
     class StockTrade(StockTrade):

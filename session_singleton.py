@@ -1,8 +1,6 @@
 import os
 import requests
-from lxml import html
 import warnings
-import re
 import json
 from constants import API_URL, REFRESH_AUTH_TOKEN_URL
 from queries import Queries
@@ -13,13 +11,10 @@ class NotLoggedInException(Exception):
 class InvestopediaAuthException(Exception):
     pass
 
-
-
 class Session:
     class __Session(requests.Session):
         def __init__(self, *args, **kwargs):
             super().__int__(*args, **kwargs)
-
     __session = None
     __auth_data = None
     __credentials = None
