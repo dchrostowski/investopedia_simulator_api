@@ -1,8 +1,7 @@
-from investopedia_api import InvestopediaApi
+from investopedia_api import InvestopediaApi, StockTrade, OptionTrade, Expiration, OrderLimit, TransactionType, OptionScope, OptionChain
 import json
 from datetime import datetime, timedelta
-from api_models import OptionScope
-from trade_common import OrderLimit, TransactionType, Expiration, StockTrade, OptionTrade
+
 
 credentials = {}
 with open('credentials.json') as ifh:
@@ -159,8 +158,8 @@ if len(p.short_portfolio) > 0:
     
     # execute trade to cover position in portfolio
     first_short_position.cover()
-    client.refresh_portfolio()
-    p = client.portfolio
+    p.refresh()
+
     for oo in p.open_orders:
         # cancel cover trade you just made
         if oo.symbol == symbol and oo.quantity == quantity:
@@ -173,8 +172,7 @@ if len(p.option_portfolio) > 0:
     quantity = first_option_contract.quantity
     # close out first option contract in portfolio
     first_option_contract.close()
-    client.refresh_portfolio()
-    p = client.portfolio
+    p.refresh()
     for oo in p.open_orders:
         # cancel order to close out contract
         if oo.symbol == symbol and oo.quantity == quantity:
@@ -198,8 +196,7 @@ option_to_buy = put_options_near_expiration_itm[0]
 trade4 = OptionTrade(portfolio_id=p.portfolio_id, symbol=option_to_buy.symbol, quantity=1, transaction_type=TransactionType.BUY)
 trade4.validate()
 trade4.execute()
-client.refresh_portfolio()
-
+p.refresh()
 p = client.portfolio
 for oo in p.open_orders:
     if oo.symbol == option_to_buy.symbol:
