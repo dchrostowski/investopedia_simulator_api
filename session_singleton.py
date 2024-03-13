@@ -5,6 +5,9 @@ import json
 from constants import API_URL, REFRESH_AUTH_TOKEN_URL
 from queries import Queries
 
+CWD =  os.path.dirname(os.path.abspath(__file__))
+
+
 class NotLoggedInException(Exception):
     pass
 
@@ -86,9 +89,9 @@ class Session:
     def login(cls, credentials):
         cls.__credentials = credentials
         if not os.path.exists('auth.json'):
-            os.system("npm install")
+            os.system("npm install %s" % CWD)
             print("Logging into Investopedia...")
-            os.system("node ./auth.js %s %s" % (credentials['username'],credentials['password']))
+            os.system("node %s/auth.js %s %s" % (CWD,credentials['username'],credentials['password']))
 
             if not os.path.exists("auth.json"):
                 raise InvestopediaAuthException("Unable to login with credentials '%s', '%s'" % (credentials['username'],credentials['password']))
